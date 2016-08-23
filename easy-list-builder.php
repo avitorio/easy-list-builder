@@ -17,12 +17,20 @@ Text Domain: easy-list-builder
 /* 
 	1. HOOKS
 		1.1 - register shortcodes
+		1.2 - register custom admin column headers
+		1.3 - register custom admin column data
 
 	2. SHORTCODES
 		2.1 - elb_register_shortcodes()
 		2.2 - elb_form_shortcode()
 
 	3. FILTERS
+		3.1 - elb_subscriber_column_headers()
+		3.2 - elb_subscriber_column_data()
+		3.2.2 - elb_register_custom_admin_titles()
+		3.2.3 - elb_custom_admin_titles()
+		3.3 - elb_list_column_headers()
+		3.4 - elb_list_column_data()
 
 	4. EXTERNAL SCRIPS
 
@@ -41,8 +49,19 @@ Text Domain: easy-list-builder
 /* 1. HOOKS */
 
 // 1.1
-// Register our shortcodes
+// hint: register our shortcodes on init
 add_action('init', 'elb_register_shortcodes');
+
+// 1.2
+// hint: register custom admin column headers
+add_filter('manage_edit-elb_subscriber_columns', 'elb_subscriber_column_headers');
+add_filter('manage_edit-elb_list_columns', 'elb_list_column_headers');
+
+// 1.3
+// hint: register custom admin column data
+add_filter('manage_elb_subscriber_posts_custom_column', 'elb_subscriber_column_data', 1, 2);
+add_action('admin_head-edit.php','elb_register_custom_admin_titles');
+add_filter('manage_elb_list_posts_custom_column', 'elb_list_column_data', 1, 2);
 
 /* 2. SHORTCODES */
 
@@ -91,3 +110,113 @@ function elb_form_shortcode($args, $content="") {
 	return $output;
 
 }
+
+/* 3. FILTERS */
+
+//3.1
+function elb_subscriber_column_headers($columns) {
+
+	// creating custom column header data
+	$columns = array(
+		'cb' => '<input type="checkbox" />',
+		'title' => __('Subscriber Name'),
+		'email' => __('Email Address'),
+	);
+
+	// return new columns
+	return $columns;
+
+}
+
+//3.2
+function elb_subscriber_column_data($column, $post_id) {
+
+	// setup our return text
+	$output = '';
+
+	switch($column) {
+
+		case 'title':
+			// get the custom name data
+			$fname = get_field('elb_fname', $post_id);
+			$lname = get_field('elb_lname', $post_id);
+			$output .= $fname . ' ' . $lname;
+			break;
+		case 'email':
+			// get the custom email data
+			$email = get_field('elb_email', $post_id);
+			$output .= $email;
+			break;
+	}
+
+	echo $output;
+}
+
+//3.2.2
+function elb_register_custom_admin_titles() {
+	add_filter(
+		'the_title',
+		'elb_custom_admin_titles',
+		99,
+		2
+	);
+}
+
+//3.2.3
+function elb_custom_admin_titles($title, $post_id) {
+	global $post;
+
+	$output = $title;
+
+	if (isset($post->post_type)):
+		switch($post->post_type) {
+			case 'elb_subscriber':
+				$fname = get_field('elb_fname', $post_id);
+				$lname = get_field('elb_lname', $post_id);
+				$output = $fname . ' ' . $lname;
+				break;
+		}
+	endif;
+
+	return $output;
+}
+
+//3.3
+function elb_list_column_headers($columns) {
+
+	// creating custom column header data
+	$columns = array(
+		'cb' => '<input type="checkbox" />',
+		'title' => __('List Name')
+	);
+
+	// return new columns
+	return $columns;
+
+}
+
+//3.4
+function elb_list_column_data($column, $post_id) {
+
+	// setup our return text
+	$output = '';
+
+	switch($column) {
+
+		case 'example':
+			// get the custom name data
+		/*
+			$fname = get_field('elb_fname', $post_id);
+			$lname = get_field('elb_lname', $post_id);
+			$output .= $fname . ' ' . $lname;
+			break;
+		*/
+	}
+
+	echo $output;
+}
+
+
+
+
+
