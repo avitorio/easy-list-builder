@@ -124,7 +124,6 @@ function elb_form_shortcode($args, $content="") {
 					<input type="submit" name="elb_submit" value="Sign Me Up!">
 				</p>
 
-
 			</form>
 		</div>
 	';
@@ -252,20 +251,20 @@ function elb_save_subscription() {
 	try {
 
 		// get list id
-		$list_id = (int)$__POST['elb_list'];
+		$list_id = (int)$_POST['elb_list'];
 
 		// prepare subscriber data
 		$subscriber_data = array (
-			'fname' => esc_attr($__POST['elb_fname']),
-			'lname' => esc_attr($__POST['elb_lname']),
-			'email' => esc_attr($__POST['elb_email']),
+			'fname' => esc_attr($_POST['elb_fname']),
+			'lname' => esc_attr($_POST['elb_lname']),
+			'email' => esc_attr($_POST['elb_email']),
 		);
 
 		// attempt to create/save subscriber
-		$subscriber_id = elb_save_subscriber( $subscriber_data);
+		$subscriber_id = elb_save_subscriber($subscriber_data);
 
 		// if subscriber was saved successfully $subscriber_id will be greater than 0
-		if ( $subscriber_id) {
+		if ($subscriber_id) {
 
 			// if subscriber already has a subscription
 			if ( elb_subscriber_has_subscription( $subscriber_id, $list_id)) {
@@ -274,19 +273,19 @@ function elb_save_subscription() {
 				$list = get_post( $list_id);
 
 				// return detailed error
-				$result['message'] .= esc_attr( $subscriber_data['email'] . 'is already subscribed to ' . $list->post_title . '.');
+				$result['message'] = esc_attr( $subscriber_data['email'] . 'is already subscribed to ' . $list->post_title . '.');
 
 			} else {
 
 				// save new subnscription
-				$subscripton_saved = elb_add_subscription( $subscriber_id, $list_id);
+				$subscription_saved = elb_add_subscription( $subscriber_id, $list_id);
 
 				// if subscription was saved successfully
-				if ( $subscription_saved) {
+				if ($subscription_saved) {
 
 					// subscription saved
 					$result['status'] = 1;
-					$result['message'] .= 'Subscription saved.';
+					$result['message'] = 'Subscription saved.';
 				}
 			}
 		}
@@ -301,14 +300,15 @@ function elb_save_subscription() {
 }
 
 //5.2
-function elb_save_subscriber( $subscriber_data) {
+function elb_save_subscriber($subscriber_data) {
 
 	// setup default subscriber id
 	// 0 means the subscriber was not saved
 	$subscriber_id = 0;
 
 	try {
-		$subscriber_id = elb_get_subscriber_id( $subscriber_data['email']);
+
+		$subscriber_id = elb_get_subscriber_id($subscriber_data['email']);
 
 		// if the subscriber does not already exist
 		if (!$subscriber_id) {
@@ -329,20 +329,18 @@ function elb_save_subscriber( $subscriber_data) {
 		update_field(elb_get_acf_key('elb_fname'), $subscriber_data['fname'], $subscriber_id);
 		update_field(elb_get_acf_key('elb_lname'), $subscriber_data['lname'], $subscriber_id);
 		update_field(elb_get_acf_key('elb_email'), $subscriber_data['email'], $subscriber_id);
+
 	} catch (Exception $e) {
 
 		// a php error occurred
 	}
-
-	// reset the WordPress post object
-	wp_reset_query();
 
 	// return subscriber id
 	return $subscriber_id;
 }
 
 //5.3
-function elb_add_subscription( $subscriber_id, $list_id) {
+function elb_add_subscription($subscriber_id, $list_id) {
 
 	// setup default return value
 	$subscription_saved = false;
@@ -370,7 +368,7 @@ function elb_add_subscription( $subscriber_id, $list_id) {
 /* 6. HELPERS */
 
 //6.1
-function elb_subscriber_has_subscription( $subscriber_id, $list_id) {
+function elb_subscriber_has_subscription($subscriber_id, $list_id) {
 
 	// setup default return value
 	$has_subscription = false;
@@ -397,7 +395,7 @@ function elb_subscriber_has_subscription( $subscriber_id, $list_id) {
 }
 
 //6.2 
-function elb_get_subscriber_id( $email) {
+function elb_get_subscriber_id($email) {
 
 	// default return value
 	$subscriber_id = 0;
@@ -445,18 +443,21 @@ function elb_get_subscriptions($subscriber_id) {
 	$subscriptions = array();
 
 	// get subscriptions (returns array of list objects)
-	$lists = get_field( elb_get_acf_key('elb_subscriptions'), $subscriber_id);
+	$lists = get_field(elb_get_acf_key('elb_subscriptions'), $subscriber_id);
+
+
 
 	// check if $lists returns something
 	if ($lists) {
 
 		// if $lists is an array and there is one or more items in it
-		if (is_rray($lists) && count($lists)) {
+		if (is_array($lists) && count($lists)) {
 
 			// build subscriptions: array of list id's
-			foreach ($list as &$lists) {
+			foreach ($lists as &$list) {
 				array_push($subscriptions, $list->ID);
 			}
+
 		}
 
 		else if ( is_numeric($lists)) {
@@ -464,8 +465,9 @@ function elb_get_subscriptions($subscriber_id) {
 			array_push($subscriptions, $lists);
 
 		}
-
 	}
+
+	return (array)$subscriptions;
 }
 
 //6.4
