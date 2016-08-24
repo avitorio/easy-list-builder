@@ -74,10 +74,18 @@ function elb_register_shortcodes () {
 // 2.2
 function elb_form_shortcode($args, $content="") {
 
+	// grab list id
+	$list_id = 0;
+	if(isset($args['id'])) {
+		$list_id = (int)$args['id'];
+	};
+
 	// setup our output variable - the html form
 	$output = '
 		<div class="elb">
-			<form id="elb_form" name="elb_form" class="elb-form" method="post"> 
+			<form id="elb_form" name="elb_form" class="elb-form" method="post" action="/wp-admin/admin-ajax.php?action=elb_save_subscription"> 
+
+				<input type="hidden" name="elb_list" value="' . $list_id . '">
 				<p class="elb-input-container">
 					<label>Your Name</label>
 					<input type="text" name="elb_fname" placeholder="First Name">
@@ -214,6 +222,70 @@ function elb_list_column_data($column, $post_id) {
 	}
 
 	echo $output;
+}
+
+//4
+
+/* 5. Actions */
+
+//5.1
+function elb_save_subscription() {
+
+	// setup default result data
+	$result = array(
+		'status' => 0,
+		'message' => 'Subscription was not saved',
+	);
+
+	try {
+
+		// get list id
+		$list_id = (int)$__POST['elb_list'];
+
+		// prepare subscriber data
+		$subscriber_data = array (
+			'fname' => esc_attr($__POST['elb_fname']),
+			'lname' => esc_attr($__POST['elb_lname']),
+			'email' => esc_attr($__POST['elb_email']),
+		);
+
+		// attempt to create/save subscriber
+		$subscriber_id = elb_save_subscriber( $subscriber_data);
+
+		// if subscriber was saved successfully $subscriber_id will be greater than 0
+		if ( $subscriber_id) {
+
+			// if subscriber already has a subscription
+			if ( elb_subscriber_has_subscription( $subscriber_id, $list_id)) {
+
+				// get list object
+				$list = get_post( $list_id);
+
+				// return detailed error
+				$result['message'] .= esc_attr( $subscriber_data['email'] . 'is already subscribed to ' . $list->post_title . '.');
+
+			} else {
+
+				// save new subnscription
+				$subscripton_saved = elb_add_subscription( $subscriber_id, $list_id);
+
+				// if subscription was saved successfully
+				if ( $subscription_saved) {
+
+					// subscription saved
+					$result['status'] = 1;
+					$result['message'] .= 'Subscription saved.';
+				}
+			}
+		}
+	} catch (Exception $e) {
+
+		// a php error occurred
+		$result['error'] = 'Caught exception: ' . $e->getMessage();
+	}
+
+	// return result as json
+	elb_return_json($result);
 }
 
 
