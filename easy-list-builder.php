@@ -19,6 +19,7 @@ Text Domain: easy-list-builder
 		1.1 - register shortcodes
 		1.2 - register custom admin column headers
 		1.3 - register custom admin column data
+		1.4 - register ajax actions
 
 	2. SHORTCODES
 		2.1 - elb_register_shortcodes()
@@ -45,6 +46,7 @@ Text Domain: easy-list-builder
 		6.3 - elb_get_subscriptions()
 		6.4 - elb_return_json()
 		6.5 - elb_get_acf_key()
+		6.6 - elb_get_subscriber_data()
 
 	7. CUSTOM POST TYPES
 
@@ -70,6 +72,11 @@ add_filter('manage_edit-elb_list_columns', 'elb_list_column_headers');
 add_filter('manage_elb_subscriber_posts_custom_column', 'elb_subscriber_column_data', 1, 2);
 add_action('admin_head-edit.php','elb_register_custom_admin_titles');
 add_filter('manage_elb_list_posts_custom_column', 'elb_list_column_data', 1, 2);
+
+//1.4
+// hint: register ajax actions
+add_action('wp_ajax_nopriv_elb_save_subscription', 'elb_save_subscription'); // regular website visitor
+add_action('wp_ajax_elb_save_subscription', 'elb_save_subscription'); // admin user
 
 /* 2. SHORTCODES */
 
@@ -97,7 +104,7 @@ function elb_form_shortcode($args, $content="") {
 				<p class="elb-input-container">
 					<label>Your Name</label>
 					<input type="text" name="elb_fname" placeholder="First Name">
-					<input type="text" name="elb_lname" placeholder="First Name">
+					<input type="text" name="elb_lname" placeholder="Last Name">
 				</p>
 				<p class="elb-input-container">
 					<label>Your Email</label>
@@ -203,7 +210,8 @@ function elb_list_column_headers($columns) {
 	// creating custom column header data
 	$columns = array(
 		'cb' => '<input type="checkbox" />',
-		'title' => __('List Name')
+		'title' => __('List Name'),
+		'shortcode' => __('Shortcode')
 	);
 
 	// return new columns
@@ -219,14 +227,10 @@ function elb_list_column_data($column, $post_id) {
 
 	switch($column) {
 
-		case 'example':
-			// get the custom name data
-		/*
-			$fname = get_field('elb_fname', $post_id);
-			$lname = get_field('elb_lname', $post_id);
-			$output .= $fname . ' ' . $lname;
+		case 'shortcode':
+			$output .= '[elb_form id='. $post_id . ']';
 			break;
-		*/
+
 	}
 
 	echo $output;
@@ -514,11 +518,14 @@ function elb_get_subscriber_data($subscriber_id) {
 	// if subscriber is valid
 	if ( isset($subscriber->post_type) && $subscriber->post_type == 'elb_subscriber') {
 
+		$fname = get_field(elb_get_acf_key('elb_fname'), $subscriber_id);
+		$lname = get_field(elb_get_acf_key('elb_lname'), $subscriber_id);
+
 		// build subscriber data for return
 		$subscriber_data = array(
-			'name' => get_field(elb_get_acf_key('elb_fname'), $subscriber_id) . ' ' get_field(elb_get_acf_key('elb_lname'), $subscriber_id),
-			'fname' => get_field(elb_get_acf_key('elb_fname'), $subscriber_id),
-			'lname' => get_field(elb_get_acf_key('elb_lname'), $subscriber_id),
+			'name' =>  $fname . ' ' . $lname,
+			'fname' => $fname,
+			'lname' => $lname,
 			'email' => get_field(elb_get_acf_key('elb_email'), $subscriber_id),
 			'subscriptions' => elb_get_subscriptions($subscriber_id)
 		);
@@ -527,11 +534,3 @@ function elb_get_subscriber_data($subscriber_id) {
 	return $subscriber_data;
 
 }
-
-
-
-
-
-
-
-
