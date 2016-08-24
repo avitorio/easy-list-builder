@@ -40,6 +40,8 @@ Text Domain: easy-list-builder
 
 	6. HELPERS
 		6.1 - elb_subscriber_has_subscription()
+		6.2 - elb_get_subscriber_id()
+		6.3 - elb_get_subscriptions()
 
 	7. CUSTOM POST TYPES
 
@@ -359,6 +361,81 @@ function elb_subscriber_has_subscription( $subscriber_id, $list_id) {
 
 	return $has_subscription;
 }
+
+//6.2 
+function elb_get_subscriber_id( $email); {
+
+	// default return value
+	$subscriber_id = 0;
+
+	try {
+
+		// check if subscriber already exists
+		$subscriber_query = new WP_Query(
+			array(
+				'post_type' => 'elb_subscriber',
+				'posts_per_page' => 1,
+				'meta_key' => 'elb_email',
+				'meta_query' => array(
+					array (
+						'key' => 'elb_email',
+						'value' => $email,
+						'compare' => '=',
+					)
+				),
+			)
+		);
+
+		// if the subscriber exists
+		if ($subscriber_query->have_posts()) {
+
+			// get the subscriber id
+			$subscriber_query->the_post();
+			$subscriber_id = get_the_ID();
+		}
+
+	} catch (Exception $e) {
+		// an error occurred
+	}
+
+	// reset the WordPress post object
+	wp_reset_query();
+
+	return (int)$subscriber_id;
+
+}
+
+//6.3
+function elb_get_subscriptions($subscriber_id) {
+
+	$subscriptions = array();
+
+	// get subscriptions (returns array of list objects)
+	$lists = get_field( elb_get_acf_key('elb_subscriptions'), $subscriber_id);
+
+	// check if $lists returns something
+	if ($lists) {
+
+		// if $lists is an array and there is one or more items in it
+		if (is_rray($lists) && count($lists)) {
+
+			// build subscriptions: array of list id's
+			foreach ($list as &$lists) {
+				$subscriptions[] => (int)$list->ID;
+			}
+		}
+
+		else if ( is_numeric($lists)) {
+			// single result returned
+			$subscriptions[] => $lists;
+
+		}
+
+	}
+}
+
+
+
 
 
 
