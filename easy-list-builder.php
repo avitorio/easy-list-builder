@@ -39,6 +39,7 @@ Text Domain: easy-list-builder
 		5.2 - elb_save_subscriber()
 
 	6. HELPERS
+		6.1 - elb_subscriber_has_subscription()
 
 	7. CUSTOM POST TYPES
 
@@ -329,6 +330,34 @@ function elb_save_subscriber( $subscriber_data) {
 
 	// return subscriber id
 	return $subscriber_id;
+}
+
+/* 6. HELPERS */
+//6.1
+function elb_subscriber_has_subscription( $subscriber_id, $list_id) {
+
+	// setup default return value
+	$has_subscription = false;
+
+	// get subscriber
+	$subscriber = get_post($subscriber_id);
+
+	// get subscriptions
+	$subscriptions = elb_get_subscriptions($subscriber_id);
+
+	// check subscriptions for list id
+	if ( in_array($list_id, $subscriptions)) {
+
+		// found the $list_id in $subscriptions
+		// this subscriber is already subscribed to the list
+		$has_subscription = true;
+
+	} else {
+
+		// subscriber not in list
+	}
+
+	return $has_subscription;
 }
 
 
