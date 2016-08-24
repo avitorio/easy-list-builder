@@ -434,6 +434,19 @@ function elb_get_subscriptions($subscriber_id) {
 	}
 }
 
+//6.4
+function elb_return_json($array) {
+
+	// encode result as json string
+	$json_result = json_encode($array);
+
+	// return result
+	die($json_result);
+
+	// stop all other processing
+	exit;
+}
+
 
 
 
