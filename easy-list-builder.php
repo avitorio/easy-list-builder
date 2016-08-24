@@ -345,7 +345,7 @@ function elb_subscriber_has_subscription( $subscriber_id, $list_id) {
 	// get subscriptions
 	$subscriptions = elb_get_subscriptions($subscriber_id);
 
-	// check subscriptions for list id
+	// check if list id is in subscriptions
 	if ( in_array($list_id, $subscriptions)) {
 
 		// found the $list_id in $subscriptions
