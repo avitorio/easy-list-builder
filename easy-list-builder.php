@@ -44,6 +44,7 @@ Text Domain: easy-list-builder
 		6.2 - elb_get_subscriber_id()
 		6.3 - elb_get_subscriptions()
 		6.4 - elb_return_json()
+		6.5 - elb_get_acf_key()
 
 	7. CUSTOM POST TYPES
 
@@ -362,13 +363,6 @@ function elb_add_subscription( $subscriber_id, $list_id) {
 	
 }
 
-//5.4
-function elb_get_acf_key($field_name) {
-
-	$field_key = $field_name;
-
-}
-
 /* 6. HELPERS */
 
 //6.1
@@ -481,6 +475,31 @@ function elb_return_json($array) {
 
 	// stop all other processing
 	exit;
+}
+
+//6.5
+function elb_get_acf_key($field_name) {
+
+	$field_key = $field_name;
+
+	switch ($field_name) {
+		case 'elb_fname':
+			$field_key = 'field_57bc051fb1d32';
+			break;
+		case 'elb_lname':
+			$field_key = 'field_57bc0548b1d33';
+			break;
+		case 'elb_email':
+			$field_key = 'field_57bc0562b1d34';
+			break;
+		
+		case 'elb_subscriptions':
+			$field_key = 'field_57bc0583b1d35';
+			break;
+	}
+
+	return $field_key;
+
 }
 
 
