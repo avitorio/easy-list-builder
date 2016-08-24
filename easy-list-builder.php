@@ -37,11 +37,13 @@ Text Domain: easy-list-builder
 	5. ACTIONS
 		5.1 - elb_save_subscription()
 		5.2 - elb_save_subscriber()
+		5.3 - elb_add_subscription()
 
 	6. HELPERS
 		6.1 - elb_subscriber_has_subscription()
 		6.2 - elb_get_subscriber_id()
 		6.3 - elb_get_subscriptions()
+		6.4 - elb_return_json()
 
 	7. CUSTOM POST TYPES
 
@@ -334,7 +336,34 @@ function elb_save_subscriber( $subscriber_data) {
 	return $subscriber_id;
 }
 
+//5.3
+function elb_add_subscription( $subscriber_id, $list_id) {
+
+	// setup default return value
+	$subscription_saved = false;
+
+	// if subscriber doesn't have the current list subscription
+	if( !elb_subscriber_has_subscription($subscriber_id, $list_id)) {
+
+		// get subscription and append new $list_id
+		$subscriptions = elb_get_subscriptions($subscriber_id);
+		array_push($subscriptions, $list_id);
+
+		// update elb_subscriptions
+		update_field(elb_get_acf_key('elb_subscriptions'), $subscriptions, $subscriber_id);
+
+		// subscriptions updated!
+		$subscription_saved = true;
+
+	}
+
+	// return result
+	return $subscription_saved;
+	
+}
+
 /* 6. HELPERS */
+
 //6.1
 function elb_subscriber_has_subscription( $subscriber_id, $list_id) {
 
