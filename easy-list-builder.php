@@ -502,6 +502,32 @@ function elb_get_acf_key($field_name) {
 
 }
 
+// 6.6
+function elb_get_subscriber_data($subscriber_id) {
+
+	// setup subscriber data
+	$subscriber_data = array();
+
+	// get subscriber object
+	$subscriber = get_post($subscriber_id);
+
+	// if subscriber is valid
+	if ( isset($subscriber->post_type) && $subscriber->post_type == 'elb_subscriber') {
+
+		// build subscriber data for return
+		$subscriber_data = array(
+			'name' => get_field(elb_get_acf_key('elb_fname'), $subscriber_id) . ' ' get_field(elb_get_acf_key('elb_lname'), $subscriber_id),
+			'fname' => get_field(elb_get_acf_key('elb_fname'), $subscriber_id),
+			'lname' => get_field(elb_get_acf_key('elb_lname'), $subscriber_id),
+			'email' => get_field(elb_get_acf_key('elb_email'), $subscriber_id),
+			'subscriptions' => elb_get_subscriptions($subscriber_id)
+		);
+	}
+
+	return $subscriber_data;
+
+}
+
 
 
 
