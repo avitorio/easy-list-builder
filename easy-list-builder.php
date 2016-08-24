@@ -35,6 +35,8 @@ Text Domain: easy-list-builder
 	4. EXTERNAL SCRIPS
 
 	5. ACTIONS
+		5.1 - elb_save_subscription()
+		5.2 - elb_save_subscriber()
 
 	6. HELPERS
 
@@ -286,6 +288,47 @@ function elb_save_subscription() {
 
 	// return result as json
 	elb_return_json($result);
+}
+
+//5.2
+function elb_save_subscriber( $subscriber_data) {
+
+	// setup default subscriber id
+	// 0 means the subscriber was not saved
+	$subscriber_id = 0;
+
+	try {
+		$subscriber_id = elb_get_subscriber_id( $subscriber_data['email']);
+
+		// if the subscriber does not already exist
+		if (!$subscriber_id) {
+
+			// add new subscriber to database
+			$subscriber_id = wp_insert_post(
+				array(
+					'post_type' => 'elb_subscriber',
+					'post_title' => $subscriber_data['fname'] . ' ' . $subscriber_data['lname'],
+					'post_status' => 'publish',
+				), 
+				true
+			);
+
+		}
+
+		// add/update custom meta data
+		update_field(elb_get_acf_key('elb_fname'), $subscriber_data['fname'], $subscriber_id);
+		update_field(elb_get_acf_key('elb_lname'), $subscriber_data['lname'], $subscriber_id);
+		update_field(elb_get_acf_key('elb_email'), $subscriber_data['email'], $subscriber_id);
+	} catch (Exception $e) {
+
+		// a php error occurred
+	}
+
+	// reset the WordPress post object
+	wp_reset_query();
+
+	// return subscriber id
+	return $subscriber_id;
 }
 
 
