@@ -362,6 +362,13 @@ function elb_add_subscription( $subscriber_id, $list_id) {
 	
 }
 
+//5.4
+function elb_get_acf_key($field_name) {
+
+	$field_key = $field_name;
+
+}
+
 /* 6. HELPERS */
 
 //6.1
@@ -386,13 +393,13 @@ function elb_subscriber_has_subscription( $subscriber_id, $list_id) {
 	} else {
 
 		// subscriber not in list
-	}
+	};
 
 	return $has_subscription;
 }
 
 //6.2 
-function elb_get_subscriber_id( $email); {
+function elb_get_subscriber_id( $email) {
 
 	// default return value
 	$subscriber_id = 0;
@@ -450,13 +457,13 @@ function elb_get_subscriptions($subscriber_id) {
 
 			// build subscriptions: array of list id's
 			foreach ($list as &$lists) {
-				$subscriptions[] => (int)$list->ID;
+				array_push($subscriptions, $list->ID);
 			}
 		}
 
 		else if ( is_numeric($lists)) {
 			// single result returned
-			$subscriptions[] => $lists;
+			array_push($subscriptions, $lists);
 
 		}
 
