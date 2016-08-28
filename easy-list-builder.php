@@ -108,7 +108,7 @@ function elb_form_shortcode($args, $content="") {
 				</p>
 				<p class="elb-input-container">
 					<label>Your Email</label>
-					<input type="text" name="elb_email" placeholder="Email">
+					<input type="email" name="elb_email" placeholder="Email">
 				</p>';
 
 				// Include content to our form if content is passed to function
@@ -246,6 +246,8 @@ function elb_save_subscription() {
 	$result = array(
 		'status' => 0,
 		'message' => 'Subscription was not saved',
+		'error' => '',
+		'errors' => array(),
 	);
 
 	try {
@@ -260,35 +262,62 @@ function elb_save_subscription() {
 			'email' => esc_attr($_POST['elb_email']),
 		);
 
-		// attempt to create/save subscriber
-		$subscriber_id = elb_save_subscriber($subscriber_data);
+		// set up errors array
+		$errors = array();
 
-		// if subscriber was saved successfully $subscriber_id will be greater than 0
-		if ($subscriber_id) {
+		// validate fields
+		if ( !strlen($subscriber_data['fname'])) $errors['fname'] = 'First name field is required.';
+		if ( !strlen($subscriber_data['email'])) $errors['email'] = 'Email address field is required.';
+		if ( strlen($subscriber_data['email']) && !is_email($subscriber_data['email'])) $errors['email'] = 'Email address must be valid.';
 
-			// if subscriber already has a subscription
-			if ( elb_subscriber_has_subscription( $subscriber_id, $list_id)) {
+		// check for errors
+		if ( count($errors)) {
 
-				// get list object
-				$list = get_post( $list_id);
+			// append errors to result structure for later use
+			$result['error'] = 'Some fields are still required.';
+			$result['errors'] = $errors;
+		} 
 
-				// return detailed error
-				$result['message'] = esc_attr( $subscriber_data['email'] . 'is already subscribed to ' . $list->post_title . '.');
+		// if there are no errors proceed
+		else {
 
-			} else {
+			// attempt to create/save subscriber
+			$subscriber_id = elb_save_subscriber($subscriber_data);
 
-				// save new subnscription
-				$subscription_saved = elb_add_subscription( $subscriber_id, $list_id);
+			// if subscriber was saved successfully $subscriber_id will be greater than 0
+			if ($subscriber_id) {
 
-				// if subscription was saved successfully
-				if ($subscription_saved) {
+				// if subscriber already has a subscription
+				if ( elb_subscriber_has_subscription( $subscriber_id, $list_id)) {
 
-					// subscription saved
-					$result['status'] = 1;
-					$result['message'] = 'Subscription saved.';
+					// get list object
+					$list = get_post( $list_id);
+
+					// return detailed error
+					$result['error'] = esc_attr( $subscriber_data['email'] . 'is already subscribed to ' . $list->post_title . '.');
+
+				} else {
+
+					// save new subnscription
+					$subscription_saved = elb_add_subscription( $subscriber_id, $list_id);
+
+					// if subscription was saved successfully
+					if ($subscription_saved) {
+
+						// subscription saved
+						$result['status'] = 1;
+						$result['message'] = 'Subscription saved.';
+					}
+
+					// if not save successfully
+					else {
+						$result['message'] = 'Something went wrong. The subscription was not saved.';
+					}
 				}
 			}
 		}
+
+		
 	} catch (Exception $e) {
 
 		// a php error occurred
