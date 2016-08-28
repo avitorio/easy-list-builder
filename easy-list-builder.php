@@ -33,7 +33,8 @@ Text Domain: easy-list-builder
 		3.3 - elb_list_column_headers()
 		3.4 - elb_list_column_data()
 
-	4. EXTERNAL SCRIPS
+	4. EXTERNAL SCRIPTS
+		4.1 - elb_public_scripts()
 
 	5. ACTIONS
 		5.1 - elb_save_subscription()
@@ -77,6 +78,10 @@ add_filter('manage_elb_list_posts_custom_column', 'elb_list_column_data', 1, 2);
 // hint: register ajax actions
 add_action('wp_ajax_nopriv_elb_save_subscription', 'elb_save_subscription'); // regular website visitor
 add_action('wp_ajax_elb_save_subscription', 'elb_save_subscription'); // admin user
+
+//1.5
+// hint: load external files to public website
+add_action('wp_enqueue_scripts', 'elb_public_scripts');
 
 /* 2. SHORTCODES */
 
@@ -235,9 +240,20 @@ function elb_list_column_data($column, $post_id) {
 	echo $output;
 }
 
-//4
+/* 4. EXTERNAL SCRIPTS */
 
-/* 5. Actions */
+//4.1
+// hint: loads external file into public website
+function elb_public_scripts() {
+
+	// register script with WordPress's internal library
+	wp_register_script('easy-list-builder-js-public', plugins_url('/js/public/easy-list-builder.js', __FILE__), array('jquery'), '', true);
+
+	// add it to queue of scripts that get loaded on each page
+	wp_enqueue_script('easy-list-builder-js-public'); 
+}
+
+/* 5. ACTIONS */
 
 //5.1
 function elb_save_subscription() {
@@ -294,7 +310,7 @@ function elb_save_subscription() {
 					$list = get_post( $list_id);
 
 					// return detailed error
-					$result['error'] = esc_attr( $subscriber_data['email'] . 'is already subscribed to ' . $list->post_title . '.');
+					$result['error'] = esc_attr( $subscriber_data['email'] . ' is already subscribed to ' . $list->post_title . '.');
 
 				} else {
 
