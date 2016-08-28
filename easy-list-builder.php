@@ -35,7 +35,8 @@ Text Domain: easy-list-builder
 		3.4 - elb_list_column_data()
 
 	4. EXTERNAL SCRIPTS
-		4.1 - elb_public_scripts()
+		4.1 - include Advanced Custom Fields
+		4.2 - elb_public_scripts()
 
 	5. ACTIONS
 		5.1 - elb_save_subscription()
@@ -51,6 +52,7 @@ Text Domain: easy-list-builder
 		6.6 - elb_get_subscriber_data()
 
 	7. CUSTOM POST TYPES
+		7.1 - subscribers
 
 	8. ADMIN PAGES
 
@@ -83,6 +85,13 @@ add_action('wp_ajax_elb_save_subscription', 'elb_save_subscription'); // admin u
 //1.5
 // hint: load external files to public website
 add_action('wp_enqueue_scripts', 'elb_public_scripts');
+
+//1.6
+// hint: advanced custom fields setting
+add_filter('acf/settings/path', 'elb_acf_settings_path');
+add_filter('acf/settings/dir', 'elb_acf_settings_dir');
+add_filter('acf/settings/show_admin', 'elb_acf_settings_show_admin');
+if( !defined('ACF_LITE')) define('ACF_LITE',  true); // turn off ACF plugin menu
 
 /* 2. SHORTCODES */
 
@@ -255,7 +264,10 @@ function elb_list_column_data($column, $post_id) {
 
 /* 4. EXTERNAL SCRIPTS */
 
-//4.1
+//4.1 Include Advanced Custom Fields
+include_once( plugin_dir_path(__FILE__) . 'lib/advanced-custom-fields/acf.php');
+
+//4.2
 // hint: loads external file into public website
 function elb_public_scripts() {
 
@@ -598,3 +610,12 @@ function elb_get_subscriber_data($subscriber_id) {
 	return $subscriber_data;
 
 }
+
+/* 7. CUSTOM POST TYPES */
+
+//7.1
+// Subscribers
+include_once( plugin_dir_path(__FILE__) . 'cpt/elb_subscriber.php');
+
+
+
