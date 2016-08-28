@@ -1,5 +1,37 @@
 <?php
 
+add_action( 'init', 'elb_register_elb_subscriber' );
+function elb_register_elb_subscriber() {
+	$labels = array(
+		"name" => __( 'Subscribers', 'twentysixteen' ),
+		"singular_name" => __( 'Subscriber', 'twentysixteen' ),
+		);
+
+	$args = array(
+		"label" => __( 'Subscribers', 'twentysixteen' ),
+		"labels" => $labels,
+		"description" => "",
+		"public" => false,
+		"show_ui" => true,
+		"show_in_rest" => false,
+		"rest_base" => "",
+		"has_archive" => false,
+		"show_in_menu" => true,
+		"exclude_from_search" => true,
+		"capability_type" => "post",
+		"map_meta_cap" => true,
+		"hierarchical" => false,
+		"rewrite" => array( "slug" => "elb_subscriber", "with_front" => false ),
+		"query_var" => true,
+				
+		"supports" => false,				
+	);
+	register_post_type( "elb_subscriber", $args );
+
+// End of cptui_register_my_cpts_elb_subscriber()
+}
+
+
 if(function_exists("register_field_group"))
 {
 	register_field_group(array (

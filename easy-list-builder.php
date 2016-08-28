@@ -53,6 +53,7 @@ Text Domain: easy-list-builder
 
 	7. CUSTOM POST TYPES
 		7.1 - subscribers
+		7.2 - lists
 
 	8. ADMIN PAGES
 
@@ -616,6 +617,10 @@ function elb_get_subscriber_data($subscriber_id) {
 //7.1
 // Subscribers
 include_once( plugin_dir_path(__FILE__) . 'cpt/elb_subscriber.php');
+
+//7.2
+// Lists
+include_once( plugin_dir_path(__FILE__) . 'cpt/elb_list.php');
 
 
 
