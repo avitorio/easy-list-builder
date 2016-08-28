@@ -20,6 +20,7 @@ Text Domain: easy-list-builder
 		1.2 - register custom admin column headers
 		1.3 - register custom admin column data
 		1.4 - register ajax actions
+		1.5 - load external scripts and styles
 
 	2. SHORTCODES
 		2.1 - elb_register_shortcodes()
@@ -114,6 +115,7 @@ function elb_form_shortcode($args, $content="") {
 				<input type="hidden" name="elb_list" value="' . $list_id . '">';
 
 				if(strlen($title)) {
+					// if title is set, show it
 					$output .= '<h3 class="elb-title">' . $title . '</h3>';
 				};
 
