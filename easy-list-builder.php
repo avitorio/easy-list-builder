@@ -100,13 +100,24 @@ function elb_form_shortcode($args, $content="") {
 		$list_id = (int)$args['id'];
 	};
 
+	// set title
+	$title = '';
+	if(isset($args['title'])) {
+		$title = (string)$args['title'];
+	};
+
 	// setup our output variable - the html form
 	$output = '
 		<div class="elb">
 			<form id="elb_form" name="elb_form" class="elb-form" method="post" action="/wp-admin/admin-ajax.php?action=elb_save_subscription"> 
 
-				<input type="hidden" name="elb_list" value="' . $list_id . '">
-				<p class="elb-input-container">
+				<input type="hidden" name="elb_list" value="' . $list_id . '">';
+
+				if(strlen($title)) {
+					$output .= '<h3 class="elb-title">' . $title . '</h3>';
+				};
+
+				$output .= '<p class="elb-input-container">
 					<label>Your Name</label>
 					<input type="text" name="elb_fname" placeholder="First Name">
 					<input type="text" name="elb_lname" placeholder="Last Name">
@@ -249,8 +260,12 @@ function elb_public_scripts() {
 	// register script with WordPress's internal library
 	wp_register_script('easy-list-builder-js-public', plugins_url('/js/public/easy-list-builder.js', __FILE__), array('jquery'), '', true);
 
+	// register styles with WordPress's internal library
+	wp_register_style('easy-list-builder-css-public', plugins_url('/css/public/easy-list-builder.css', __FILE__));
+
 	// add it to queue of scripts that get loaded on each page
 	wp_enqueue_script('easy-list-builder-js-public'); 
+	wp_enqueue_style('easy-list-builder-css-public'); 
 }
 
 /* 5. ACTIONS */
