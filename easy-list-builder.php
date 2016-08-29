@@ -21,6 +21,9 @@ Text Domain: easy-list-builder
 		1.3 - register custom admin column data
 		1.4 - register ajax actions
 		1.5 - load external scripts and styles
+		1.6 - advanced custom fields setting
+		1.7 - register custom menus
+		1.8 - register admin javascript files
 
 	2. SHORTCODES
 		2.1 - elb_register_shortcodes()
@@ -33,10 +36,12 @@ Text Domain: easy-list-builder
 		3.2.3 - elb_custom_admin_titles()
 		3.3 - elb_list_column_headers()
 		3.4 - elb_list_column_data()
+		3.5 - elb_admin_menus()
 
 	4. EXTERNAL SCRIPTS
 		4.1 - include Advanced Custom Fields
 		4.2 - elb_public_scripts()
+		4.3 - elb_admin_scripts()
 
 	5. ACTIONS
 		5.1 - elb_save_subscription()
@@ -56,6 +61,9 @@ Text Domain: easy-list-builder
 		7.2 - lists
 
 	8. ADMIN PAGES
+		8.1 - elb_dashboard_admin_page()
+		8.2 - elb_import_admin_page()
+		8.3 - elb_options_admin_page()
 
 	9. SETTINGS
 
@@ -93,6 +101,14 @@ add_filter('acf/settings/path', 'elb_acf_settings_path');
 add_filter('acf/settings/dir', 'elb_acf_settings_dir');
 add_filter('acf/settings/show_admin', 'elb_acf_settings_show_admin');
 if( !defined('ACF_LITE')) define('ACF_LITE',  true); // turn off ACF plugin menu
+
+//1.7
+// hint: register custom menus
+add_action('admin_menu', 'elb_admin_menus');
+
+//1.8
+// hint: register admin javascript files
+add_action('admin_enqueue_scripts', 'elb_admin_scripts');
 
 /* 2. SHORTCODES */
 
@@ -263,6 +279,34 @@ function elb_list_column_data($column, $post_id) {
 	echo $output;
 }
 
+//3.5
+// hint: register custom plugin admin menus
+function elb_admin_menus() {
+
+	// main Menu
+		$top_menu_item = 'elb_dashboard_admin_page';
+
+		add_menu_page('', 'List Builder', 'manage_options', 'elb_dashboard_admin_page', 'elb_dashboard_admin_page', 'dashicons-email-alt');
+
+	// submenu Items
+
+		// dashboard
+		add_submenu_page($top_menu_item, '', 'Dashboard', 'manage_options', $top_menu_item, $top_menu_item);
+
+		// email lists
+		add_submenu_page($top_menu_item, '', 'Email Lists', 'manage_options', 'edit.php?post_type=elb_list');
+
+		// subscribers
+		add_submenu_page($top_menu_item, '', 'Subscribers', 'manage_options', 'edit.php?post_type=elb_subscriber');
+
+		// import subscribers
+		add_submenu_page($top_menu_item, '', 'Import Subscribers', 'manage_options', 'elb_import_admin_page', 'elb_import_admin_page');
+
+		// plugin options
+		add_submenu_page($top_menu_item, '', 'Plugin Options', 'manage_options', 'elb_options_admin_page', 'elb_options_admin_page');
+
+}
+
 /* 4. EXTERNAL SCRIPTS */
 
 //4.1 Include Advanced Custom Fields
@@ -281,6 +325,17 @@ function elb_public_scripts() {
 	// add it to queue of scripts that get loaded on each page
 	wp_enqueue_script('easy-list-builder-js-public'); 
 	wp_enqueue_style('easy-list-builder-css-public'); 
+}
+
+//4.3
+// hint: loads external file into admin area
+function elb_admin_scripts() {
+
+	// register script with WordPress's internal library
+	wp_register_script('easy-list-builder-js-private', plugins_url('/js/private/easy-list-builder.js', __FILE__), array('jquery'), '', true);
+
+	// add it to queue of scripts that get loaded on each page
+	wp_enqueue_script('easy-list-builder-js-private'); 
 }
 
 /* 5. ACTIONS */
@@ -612,6 +667,77 @@ function elb_get_subscriber_data($subscriber_id) {
 
 }
 
+// 6.7
+// hint: returns html for a page selector
+function elb_get_page_select( $input_name="elb_page", $input_id="", $parent=-1, $value_field="id", $selected_value="" ) {
+	
+	// get WP pages
+	$pages = get_pages( 
+		array(
+			'sort_order' => 'asc',
+			'sort_column' => 'post_title',
+			'post_type' => 'page',
+			'parent' => $parent,
+			'status'=>array('draft','publish'),	
+		)
+	);
+	
+	// setup our select html
+	$select = '<select name="'. $input_name .'" ';
+	
+	// IF $input_id was passed in
+	if( strlen($input_id) ):
+	
+		// add an input id to our select html
+		$select .= 'id="'. $input_id .'" ';
+	
+	endif;
+	
+	// setup our first select option
+	$select .= '><option value="">- Select One -</option>';
+	
+	// loop over all the pages
+	foreach ( $pages as &$page ): 
+	
+		// get the page id as our default option value
+		$value = $page->ID;
+		
+		// determine which page attribute is the desired value field
+		switch( $value_field ) {
+			case 'slug':
+				$value = $page->post_name;
+				break;
+			case 'url':
+				$value = get_page_link( $page->ID );
+				break;
+			default:
+				$value = $page->ID;
+		}
+		
+		// check if this option is the currently selected option
+		$selected = '';
+		if( $selected_value == $value ):
+			$selected = ' selected="selected" ';
+		endif;
+	
+		// build our option html
+		$option = '<option value="' . $value . '" '. $selected .'>';
+		$option .= $page->post_title;
+		$option .= '</option>';
+		
+		// append our option to the select html
+		$select .= $option;
+		
+	endforeach;
+	
+	// close our select html tag
+	$select .= '</select>';
+	
+	// return our new select 
+	return $select;
+	
+}
+
 /* 7. CUSTOM POST TYPES */
 
 //7.1
@@ -621,6 +747,126 @@ include_once( plugin_dir_path(__FILE__) . 'cpt/elb_subscriber.php');
 //7.2
 // Lists
 include_once( plugin_dir_path(__FILE__) . 'cpt/elb_list.php');
+
+
+/* 8. ADMIN PAGES */
+
+// 8.1
+// hint: dashboard admin page
+function elb_dashboard_admin_page() {
+	
+	
+	$output = '
+		<div class="wrap">
+			
+			<h2>Easy List Builder</h2>
+			
+			<p>The ultimate email list building plugin for WordPress. Capture new subscribers. Reward subscribers with a custom download upon opt-in. Build unlimited lists. Import and export subscribers easily with .csv</p>
+		
+		</div>
+	';
+	
+	echo $output;
+	
+}
+
+// 8.2
+// hint: import subscribers admin page
+function elb_import_admin_page() {
+	
+	
+	$output = '
+		<div class="wrap">
+			
+			<h2>Import Subscribers</h2>
+			
+			<p>Page description...</p>
+		
+		</div>
+	';
+	
+	echo $output;
+	
+}
+
+// 8.3
+// hint: plugin options admin page
+function elb_options_admin_page() {
+	
+	echo('<div class="wrap">
+		
+		<h2>Easy List Builder Options</h2>
+		
+		<form action="options.php" method="post">
+			
+			<table class="form-table">
+			
+				<tbody>
+			
+					<tr>
+						<th scope="row"><label for="elb_manage_subscription_page_id">Manage Subscriptions Page</label></th>
+						<td>
+							'. elb_get_page_select( 'elb_manage_subscription_page_id', 'elb_manage_subscription_page_id', 0, 'id', '') .'
+							<p class="description" id="elb_manage_subscription_page_id-description">This is the page where Easy List Builder will send subscribers to manage their subscriptions. <br />
+								IMPORTANT: In order to work, the page you select must contain the shortcode: <strong>[elb_manage_subscriptions]</strong>.</p>
+						</td>
+					</tr>
+					
+			
+					<tr>
+						<th scope="row"><label for="elb_confirmation_page_id">Opt-In Page</label></th>
+						<td>
+							'. elb_get_page_select( 'elb_confirmation_page_id', 'elb_confirmation_page_id', 0, 'id', '' ) .'
+							<p class="description" id="elb_confirmation_page_id-description">This is the page where Easy List Builder will send subscribers to confirm their subscriptions. <br />
+								IMPORTANT: In order to work, the page you select must contain the shortcode: <strong>[elb_confirm_subscription]</strong>.</p>
+						</td>
+					</tr>
+					
+			
+					<tr>
+						<th scope="row"><label for="elb_reward_page_id">Download Reward Page</label></th>
+						<td>
+							'. elb_get_page_select( 'elb_reward_page_id', 'elb_reward_page_id', 0, 'id', '' ) .'
+							<p class="description" id="elb_reward_page_id-description">This is the page where Easy List Builder will send subscribers to retrieve their reward downloads. <br />
+								IMPORTANT: In order to work, the page you select must contain the shortcode: <strong>[elb_download_reward]</strong>.</p>
+						</td>
+					</tr>
+			
+					<tr>
+						<th scope="row"><label for="elb_default_email_footer">Email Footer</label></th>
+						<td>');
+						
+							
+							// wp_editor will act funny if it's stored in a string so we run it like this...
+							wp_editor( '', 'elb_default_email_footer', array( 'textarea_rows'=>8 ) );
+							
+							
+							echo('<p class="description" id="elb_default_email_footer-description">The default text that appears at the end of emails generated by this plugin.</p>
+						</td>
+					</tr>
+			
+					<tr>
+						<th scope="row"><label for="elb_download_limit">Reward Download Limit</label></th>
+						<td>
+							<input type="number" name="elb_download_limit" value="0" class="" />
+							<p class="description" id="elb_download_limit-description">The amount of downloads a reward link will allow before expiring.</p>
+						</td>
+					</tr>
+			
+				</tbody>
+				
+			</table>
+		
+			<p class="submit">
+				<input type="submit" name="submit" id="submit" class="button button-primary" value="Save Changes">
+			</p>
+		
+		
+		</form>
+	
+	</div>');
+	
+}
 
 
 
