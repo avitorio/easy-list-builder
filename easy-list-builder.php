@@ -29,6 +29,7 @@ Text Domain: easy-list-builder
 	2. SHORTCODES
 		2.1 - elb_register_shortcodes()
 		2.2 - elb_form_shortcode()
+		2.3 - elb_manage_subscriptions_shortcode()
 
 	3. FILTERS
 		3.1 - elb_subscriber_column_headers()
@@ -48,6 +49,8 @@ Text Domain: easy-list-builder
 		5.1 - elb_save_subscription()
 		5.2 - elb_save_subscriber()
 		5.3 - elb_add_subscription()
+		5.4 - elb_unsubscribe()
+		5.5 - elb_remove_subscription()
 
 	6. HELPERS
 		6.1 - elb_subscriber_has_subscription()
@@ -60,6 +63,7 @@ Text Domain: easy-list-builder
 		6.8 - elb_get_default_options()
 		6.9 - elb_get_option()
 		6.10 - elb_get_current_options()
+		6.11 - elb_get_manage_subscriptions_html()
 
 	7. CUSTOM POST TYPES
 		7.1 - subscribers
@@ -96,6 +100,9 @@ add_filter('manage_elb_list_posts_custom_column', 'elb_list_column_data', 1, 2);
 // hint: register ajax actions
 add_action('wp_ajax_nopriv_elb_save_subscription', 'elb_save_subscription'); // regular website visitor
 add_action('wp_ajax_elb_save_subscription', 'elb_save_subscription'); // admin user
+add_action('wp_ajax_nopriv_elb_unsubscribe', 'elb_unsubscribe'); // regular website visitor
+add_action('wp_ajax_elb_unsubscribe', 'elb_unsubscribe'); // admin user
+
 
 //1.5
 // hint: load external files to public website
@@ -123,9 +130,10 @@ add_action('admin_init', 'elb_register_options');
 /* 2. SHORTCODES */
 
 // 2.1
-function elb_register_shortcodes () {
+function elb_register_shortcodes() {
 
 	add_shortcode('elb_form', 'elb_form_shortcode');
+	add_shortcode('elb_manage_subscriptions', 'elb_manage_subscriptions_shortcode');
 }
 
 // 2.2
@@ -146,7 +154,7 @@ function elb_form_shortcode($args, $content="") {
 	// setup our output variable - the html form
 	$output = '
 		<div class="elb">
-			<form id="elb_form" name="elb_form" class="elb-form" method="post" action="/wp-admin/admin-ajax.php?action=elb_save_subscription"> 
+			<form id="elb_register_form" name="elb_form" class="elb-form" method="post" action="/wp-admin/admin-ajax.php?action=elb_save_subscription"> 
 
 				<input type="hidden" name="elb_list" value="' . $list_id . '">';
 
@@ -184,6 +192,50 @@ function elb_form_shortcode($args, $content="") {
 
 	// return output
 	return $output;
+
+}
+
+//2.3
+// hint: displays a form for managing the users list subscriptions
+// example: [elb_manage_subscriptions]
+function elb_manage_subscriptions_shortcode() {
+
+	// setup our return string
+	$output = '<div class="elb elb_manage_subscriptions">';
+
+	try {
+
+		// get the email address from the URL
+		$email = ( isset($_GET['email'])) ? esc_attr( $_GET['email'] ) : '';
+
+		// get the subscriber id from the email address
+		$subscriber_id = elb_get_subscriber_id($email);
+
+		// get subscriber data
+		$subscriber_data = elb_get_subscriber_data($subscriber_id);
+
+		// if subscriber exists
+		if ($subscriber_id) {
+
+			// get subscriptions html
+			$output = elb_get_manage_subscriptions_html( $subscriber_id );
+
+		} else {
+
+			// invalid link
+			$output .= '<p>This link is invalid</p>';
+		}
+
+	} catch (Exception $e) {
+		// php error
+	}
+
+	// close our div tag
+	$output .= '</div>';
+
+	return $output;
+
+
 
 }
 
@@ -503,6 +555,81 @@ function elb_add_subscription($subscriber_id, $list_id) {
 	// return result
 	return $subscription_saved;
 	
+}
+
+//5.4
+// unsubscribes user from one or more lists
+function elb_unsubscribe() {
+
+	// setup default results data
+	$result = array(
+		'status' => 0,
+		'message' => 'Subscriptions were NOT Updated.',
+		'error' => '',
+		'errors' => array()
+	);
+
+	$subscriber_id = ( isset($_POST['subscriber_id'])) ? esc_attr( (int)$_POST['subscriber_id']) : 0;
+	$list_ids = (isset($_POST['list_ids'])) ? $_POST['list_ids'] : 0;
+
+	try {
+
+		// if there are lists to emove
+		if( is_array($list_ids)) {
+
+			// loop over lists to remove
+			foreach ($list_ids as &$list_id) {
+
+				// remove this subscription
+				elb_remove_subscription( $subscriber_id, $list_id);
+			}
+		}
+
+		// setup success status and message
+		$result['status'] = 1;
+		$result['message'] = 'Subscriptions updated.';
+
+		// get the udapted list of subscriptions as html
+		$result['html'] = elb_get_manage_subscriptions_html( $subscriber_id);
+
+	} catch (Exception $e) {
+
+		// php error
+	}
+
+	// return result as json
+	elb_return_json($result);
+
+}
+
+//5.5
+// remove a single subscription from a subscriber
+function elb_remove_subscription($subscriber_id, $list_id) {
+
+	// setup default return value
+	$subscription_saved = false;
+
+	// if the subscriber has the current list subscription
+	if ( elb_subscriber_has_subscription($subscriber_id, $list_id)) {
+
+		// get current subscriptions
+		$subscriptions = elb_get_subscriptions($subscriber_id);
+
+		// get the position of the $list_id to remove
+		$needle = array_search($list_id, $subscriptions);
+
+		// remove $list_id from $subscription array
+		unset($subscriptions[$needle]);
+
+		// update elb subscriptions
+		update_field(elb_get_acf_key('elb_subscriptions'), $subscriptions, $subscriber_id);
+
+		// subscriptions updated
+		$subscription_saved = true;
+
+
+	}
+
 }
 
 /* 6. HELPERS */
@@ -861,6 +988,81 @@ function elb_get_current_options() {
 	}
 
 	return $current_options;
+}
+
+//6.11
+// hint: creates html form to manage subscriptions
+function elb_get_manage_subscriptions_html($subscriber_id) {
+
+	$output = '';
+
+	try {
+
+		// get array of list_ids for this subscriber
+		$lists = elb_get_subscriptions($subscriber_id);
+
+		// get subscriber data
+		$subscriber_data = elb_get_subscriber_data($subscriber_id);
+
+		// set the title
+		$title = $subscriber_data['fname'] . '\'s Subscriptions';
+
+		// build output html
+
+		$output = '
+			<form id="elb_manage_subscriptions_form" class="elb elb_form" method="post" action="/wp-admin/admin-ajax.php?action=elb_unsubscribe">
+
+				<input type="hidden" name="subscriber_id" value="' . $subscriber_id . '">
+
+				<h3 class="elb-title">' . $title . '</h3>';
+
+				if (!count($lists)) {
+
+					$output .= '<p>There are no active subscriptions</p>';
+
+				} else {
+					$output .= '
+						<table>
+							<tbody>';
+
+					// loop over lists
+					foreach ($lists as &$list_id) {
+
+
+						$list_object = get_post( $list_id );
+
+						$output .= '
+							<tr>
+								<td>' . $list_object->post_title . '</td>
+								<td> 
+									<label>
+										<input type="checkbox" name="list_ids[]" value="' . $list_object->ID .'"/> UNSUBSCRIBE
+									</label>
+								</td>
+							</tr>';
+
+					}
+
+					$output .= '		
+							</tbody>
+						</table>
+
+						<p><input type="submit" value="Save Changes" /></p>';
+
+				}
+
+		$output .= '
+			</form>
+		';
+
+	} catch (Exception $e) {
+
+		// php error
+
+	}
+
+	return $output;
+
 }
 
 
