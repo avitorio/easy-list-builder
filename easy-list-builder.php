@@ -467,9 +467,29 @@ function elb_save_subscription() {
 					// if subscription was saved successfully
 					if ($subscription_saved) {
 
-						// subscription saved
-						$result['status'] = 1;
-						$result['message'] = 'Subscription saved.';
+						// send new subscriber a confirmation email, returns true if we are successful
+						$email_sent = elb_send_subscriber_email($subscriber_id, 'new_subscription', $list_id);
+
+						// if email was sent
+						if ( !$email_sent ) {
+
+							// remove subscription
+							elb_remove_subscription($subscriber_id, $list_id);
+
+							// email could not be sent
+							$result['error'] = 'Email could not be sent';
+
+						} else {
+
+							// subscription saved
+							$result['status'] = 1;
+							$result['message'] = 'Success! A confirmation email has been sent to' . $subscriber_data['email'];
+
+							// clean up: remove our empty error
+							unset( $result['error']);
+							
+						}
+
 					}
 
 					// if not save successfully
@@ -631,6 +651,34 @@ function elb_remove_subscription($subscriber_id, $list_id) {
 	}
 
 }
+
+//5.6
+// hint: sends a unique cutomized email to a subscriber
+function elb_send_subscriber_email( $subscriber_id, $email_template_name, $list_id ) {
+
+	// return variable
+	$email_sent = false;
+
+	// get email template data
+	$email_template_object = elb_get_email_template( $subscriber_id, $email_template_name, $list_id);
+
+	// if email template data was found
+	if ( !empty( $email_template_object )) {
+
+		// get subscriber data
+		$subscriber_data = elb_get_subscriber_data( $subscriber_id );
+
+		// set wp_mail headers
+		$wp_mail_headers = array('Content-Type: text/html; charset=UTF-8');
+
+		// use wp_mail to send email
+		$email_sent = wp_mail( array( $subscriber_data['email']), $email_template_object['subject'], $email_template_object['body'], $wp_mail_headers);
+
+	}
+
+	return $email_sent;
+}
+
 
 /* 6. HELPERS */
 
@@ -1064,6 +1112,157 @@ function elb_get_manage_subscriptions_html($subscriber_id) {
 	return $output;
 
 }
+
+//6.12
+// return an array of email template data if the template exists
+function elb_get_email_template( $subscriber_id, $email_template_name, $list_id) {
+
+	// setup return variable
+	$template_data = array();
+
+	// create new array to store email templates
+	$email_templates = array();
+
+	// get list object
+	$list = get_post( $list );
+
+	// get subscriber object
+	$subscriber = get_post( $subscriber_id );
+
+	if ( !elb_validate_list( $list ) || !elb_validate_subscriber() ) {
+
+		// the list or the subscriber are not valid
+	} else {
+
+		// get subscriber data
+		$subscriber_data = elb_get_subscriber_data( $subscriber_id );
+
+		// get unique manage subscription link
+		$manage_subscriptions_link = elb_get_manage_subscriptions_link( $subscriber_data['email'], $list_id );
+
+		// get default email header
+		$default_email_header = '<p>Hello, ' . $subscriber_data['fname'] . '!</p>';
+
+		// get default email footer
+		$default_email_footer = elb_get_option('elb_default_email_footer');
+
+		// setup unsubscribe text
+		$unsubscribe_text = '
+			<br /><br />
+			<hr />
+			<p><a href="'. $manage_subscriptions_link . '">Click here to unsubscribe</a> from this or any other email lists.</p>';
+
+
+		// setup email templates
+
+			// template: new_subscription
+			$email_templates['new_subscription'] = array(
+				'subject' => 'Thank you for subscribing to' . $list->post_title . '! Please confirm your subscription.',
+				'body' => '' . $default_email_header . '
+					<p>Thank you for subscribing to ' . $list->post_title . '!</p>
+					<p>Please <a href="' . $optin_link . '">click here to confirm your subscription.</a></p>'
+					. $default_email_footer . $unsubscribe_text,
+			);
+
+			// template: subscription_confirmed
+			$email_templates['subscription_confirmed'] = array(
+				'subject' => 'Thank you for subscribing to' . $list->post_title . '!',
+				'body' => '' . $default_email_header . '
+					<p>Thank you for subscribing to ' . $list->post_title . '!</p>
+					<p>Your subscription has been confirmed!</p>'
+					. $default_email_footer . $unsubscribe_text,
+			);
+	}
+
+	// if the email template exists
+	if ( isset( $email_templates[ $email_temaplate_name ])) {
+
+		// add template data to return variable
+		$template_data = $email_templates[ $email_temaplate_name ];
+
+	}
+
+	// return template data
+	return $template_data;
+
+}
+
+//6.13
+// validates whether the post object exists and if it is a valid post type
+function elb_validate_list( $list_object ) {
+
+	// setup return variable
+	$list_valid = false;
+
+	if ( isset($list_object->post_type) && $subscriber_object->post_type == 'elb_list') {
+
+		$list_valid = true;
+	}
+
+	return $list_valid;
+
+}
+
+//6.14
+// validates whether the post object exists and if it is a valid post type
+function elb_validate_subscriber( $subscriber_object ) {
+
+	// setup return variable
+	$subscriber_valid = false;
+
+	if ( isset($subscriber_object->post_type) && $subscriber_object->post_type == 'elb_subscriber') {
+
+		$subscriber_valid = true;
+	}
+
+	return $subscriber_valid;
+
+}
+
+//6.15
+// returns a unique link for managing a user's subscription
+function elb_get_subscriptions_link( $email, $list_id=0 ) {
+
+	$link_href = '';
+
+	try {
+
+		$page = get_post( elb_get_option('elb_manage_subscription_page_id'));
+		$slug = $page->post_name;
+
+		$permalink = get_permalink($page);
+
+		// get character to start querystring
+		$startquery = elb_get_querystring_start( $permalink );
+
+		$link_href = $permalink . $startquery . 'email=' . urlencode($email) . '&list=' . $list_id;
+
+	} catch (Exception $e) {
+
+		//$link_href = $e->getMessage();
+
+	}
+
+	return $link_href;
+}
+
+// 6.16
+// returns the appropriate character for the beginning of a query string
+function elb_get_querystring_start( $permalink ) {
+
+	// setup our default return variable
+	$querystring_start = '&';
+
+	// if ? is not found in the permalink
+	if ( strpos($permalink, '? ') === false ) {
+
+		$querystring_start = '?';
+
+	}
+
+	return $querystring_start;
+}
+
 
 
 /* 7. CUSTOM POST TYPES */
