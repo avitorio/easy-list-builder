@@ -134,6 +134,7 @@ function elb_register_shortcodes() {
 
 	add_shortcode('elb_form', 'elb_form_shortcode');
 	add_shortcode('elb_manage_subscriptions', 'elb_manage_subscriptions_shortcode');
+	add_shortcode('elb_confirm_subscription', 'elb_confirm_subscription_shortcode');
 }
 
 // 2.2
@@ -234,10 +235,76 @@ function elb_manage_subscriptions_shortcode() {
 	$output .= '</div>';
 
 	return $output;
-
-
-
 }
+
+//2.4
+// displays subscription opt-in confirmation text and link to manage subscriptions
+// example: [elb_confirm_subscription]
+function elb_confirm_subscription_shortcode( $args, $content="") {
+
+	// setup output variable
+	$output = '';
+
+	// setup email and list_id variables and handle if they are not defined in GET scope
+	$email = ( isset( $_GET['email'] )) ? esc_attr($_GET['email']) : '';
+	$list_id = ( isset( $_GET['list'] )) ? esc_attr($_GET['list']) : 0;
+
+	// get subscriber id from email
+	$subscriber_id = elb_get_subscriber_id( $email );
+	$subscriber = get_post( $subscriber_id );
+
+	// if we find a subscriber matching that email address
+	if ( $subscriber_id && elb_validate_subscriber( $subscriber )) {
+
+		// get list object
+		$list = get_post( $list_id );
+
+		// if list and subscriber are valid
+		if ( elb_validate_list( $list )) {
+
+			// if subscription has not yet been added
+			if ( !elb_subscriber_has_subscription( $subscriber_id, $list_id)) {
+
+				// complete opt-in
+				$optin_complete = elb_confirm_subscription( $subscriber_id, $list_id );
+
+				if ( !$optin_complete ) {
+
+					$output .= elb_get_message_html('Unfortunately we were unable to confirm your subscription', 'error');
+
+					$output .= '</div>';
+
+					return $output;
+				}
+			}
+
+			// get confirmation message html and append it to output
+			$output .= elb_get_message_html('Your subscription to ' . $list->post_title . ' has now been confirmed.', 'confirmation');
+
+			// get manage subscriptions link
+			$manage_subscriptions_link = elb_get_manage_subscriptions_link( $email );
+
+			// append link to output
+			$output .= '<p><a href="' . $manage_subscriptions_link . '">Click here to manage your subscriptions.</a></p>';
+
+		} else {
+
+			$output .= elb_get_message_html('This link is invalid.', 'error');
+
+		}
+	} else {
+
+		$output .= elb_get_message_html('This link is invalid. Invalid subscriber' . $email . '.', 'error');
+
+	}
+
+	// close elb div
+	$output .= '</div>';
+
+	// return output
+	return $output;
+}
+
 
 /* 3. FILTERS */
 
@@ -461,40 +528,24 @@ function elb_save_subscription() {
 
 				} else {
 
-					// save new subnscription
-					$subscription_saved = elb_add_subscription( $subscriber_id, $list_id);
+					// send new subscriber a confirmation email, returns true if we are successful
+					$email_sent = elb_send_subscriber_email($subscriber_id, 'new_subscription', $list_id);
 
-					// if subscription was saved successfully
-					if ($subscription_saved) {
+					// if email was sent
+					if ( !$email_sent ) {
 
-						// send new subscriber a confirmation email, returns true if we are successful
-						$email_sent = elb_send_subscriber_email($subscriber_id, 'new_subscription', $list_id);
+						// email could not be sent
+						$result['error'] = 'Email could not be sent';
 
-						// if email was sent
-						if ( !$email_sent ) {
+					} else {
 
-							// remove subscription
-							elb_remove_subscription($subscriber_id, $list_id);
+						// subscription saved
+						$result['status'] = 1;
+						$result['message'] = 'Success! A confirmation email has been sent to ' . $subscriber_data['email'];
 
-							// email could not be sent
-							$result['error'] = 'Email could not be sent';
-
-						} else {
-
-							// subscription saved
-							$result['status'] = 1;
-							$result['message'] = 'Success! A confirmation email has been sent to' . $subscriber_data['email'];
-
-							// clean up: remove our empty error
-							unset( $result['error']);
-							
-						}
-
-					}
-
-					// if not save successfully
-					else {
-						$result['message'] = 'Something went wrong. The subscription was not saved.';
+						// clean up: remove our empty error
+						unset( $result['error']);
+						
 					}
 				}
 			}
@@ -679,6 +730,33 @@ function elb_send_subscriber_email( $subscriber_id, $email_template_name, $list_
 	return $email_sent;
 }
 
+//5.7
+// adds subscription to database and send confirmation email to the subscriber
+function elb_confirm_subscription( $subscriber_id, $list_id ) {
+
+	// setup return value
+	$optin_complete = false;
+
+	// add new subscription
+	$subscription_saved = elb_add_subscription( $subscriber_id, $list_id );
+
+	// if subscription was saved
+	if ( $subscription_saved ) {
+
+		// send email
+		$email_sent = elb_send_subscriber_email( $subscriber_id, 'subscription_confirmed', $list_id )
+
+		// if email sent
+		if ($email_sent) {
+
+			// return true
+			$optin_complete = true;
+
+		}
+	}
+
+	return $optin_complete;
+}
 
 /* 6. HELPERS */
 
@@ -1124,12 +1202,12 @@ function elb_get_email_template( $subscriber_id, $email_template_name, $list_id)
 	$email_templates = array();
 
 	// get list object
-	$list = get_post( $list );
+	$list = get_post( $list_id );
 
 	// get subscriber object
 	$subscriber = get_post( $subscriber_id );
 
-	if ( !elb_validate_list( $list ) || !elb_validate_subscriber() ) {
+	if ( !elb_validate_list( $list ) || !elb_validate_subscriber( $subscriber ) ) {
 
 		// the list or the subscriber are not valid
 	} else {
@@ -1155,6 +1233,10 @@ function elb_get_email_template( $subscriber_id, $email_template_name, $list_id)
 
 		// setup email templates
 
+
+			// get unique opt-in link
+			$optin_link = elb_get_option_link( $subscriber_data['email'], $list_id);
+
 			// template: new_subscription
 			$email_templates['new_subscription'] = array(
 				'subject' => 'Thank you for subscribing to' . $list->post_title . '! Please confirm your subscription.',
@@ -1166,19 +1248,19 @@ function elb_get_email_template( $subscriber_id, $email_template_name, $list_id)
 
 			// template: subscription_confirmed
 			$email_templates['subscription_confirmed'] = array(
-				'subject' => 'Thank you for subscribing to' . $list->post_title . '!',
+				'subject' => 'You are now subscribed to' . $list->post_title . '!',
 				'body' => '' . $default_email_header . '
-					<p>Thank you for subscribing to ' . $list->post_title . '!</p>
-					<p>Your subscription has been confirmed!</p>'
+					<p>You are now subscribed to ' . $list->post_title . '!</p>
+					<p>Thank you for confirming your subscription!</p>'
 					. $default_email_footer . $unsubscribe_text,
 			);
 	}
 
 	// if the email template exists
-	if ( isset( $email_templates[ $email_temaplate_name ])) {
+	if ( isset( $email_templates[ $email_template_name ])) {
 
 		// add template data to return variable
-		$template_data = $email_templates[ $email_temaplate_name ];
+		$template_data = $email_templates[ $email_template_name ];
 
 	}
 
@@ -1194,8 +1276,7 @@ function elb_validate_list( $list_object ) {
 	// setup return variable
 	$list_valid = false;
 
-	if ( isset($list_object->post_type) && $subscriber_object->post_type == 'elb_list') {
-
+	if ( isset($list_object->post_type) && $list_object->post_type == 'elb_list') {
 		$list_valid = true;
 	}
 
@@ -1221,7 +1302,7 @@ function elb_validate_subscriber( $subscriber_object ) {
 
 //6.15
 // returns a unique link for managing a user's subscription
-function elb_get_subscriptions_link( $email, $list_id=0 ) {
+function elb_get_manage_subscriptions_link( $email, $list_id=0 ) {
 
 	$link_href = '';
 
@@ -1243,7 +1324,7 @@ function elb_get_subscriptions_link( $email, $list_id=0 ) {
 
 	}
 
-	return $link_href;
+	return esc_url($link_href);
 }
 
 // 6.16
@@ -1261,6 +1342,80 @@ function elb_get_querystring_start( $permalink ) {
 	}
 
 	return $querystring_start;
+}
+
+//6.17
+// returns unique link for opting to an email list
+function elb_get_optin_link( $email, $list_id=0) {
+
+	$link_href = '';
+
+	try {
+
+		$page = get_post( elb_get_option('elb_confirmation_page_id'));
+		$slug = $page->post_name;
+
+		$permalink = get_permalink($page);
+
+		// get character to start querystring
+		$startquery = elb_get_querystring_start( $permalink );
+
+		$link_href = $permalink . $startquery . 'email=' . urlencode($email) . '&list=' . $list_id;
+
+	} catch (Exception $e) {
+
+		//$link_href = $e->getMessage();
+
+	}
+
+	return esc_url($link_href);
+}
+
+//6.18
+// return html messages
+function elb_get_message_html( $message, $message_type ) {
+
+	$output = '';
+
+	try {
+
+		$message_class = 'confirmation';
+
+		switch ( $message_type ) {
+
+			case 'warning' :
+
+				$message_class = 'elb-warning';
+				break;
+
+			case 'error' :
+
+				$message_class = 'elb-error';
+				break;
+
+			case 'confirmation' :
+
+				$message_class = 'elb-confirmation';
+				break;
+			 
+		}
+
+		$output .= '
+			<div class="elb-message-container">
+				<div class="elb-message ' . $message_class . '">
+					<p>' . $message . '</p>
+				</div>
+			</div>
+		';
+
+
+	} catch (Exception $e) {
+
+	}
+
+	return $output;
+
+
 }
 
 

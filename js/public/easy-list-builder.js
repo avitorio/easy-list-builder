@@ -61,7 +61,7 @@ jQuery(document).ready(function($) {
 		});
 
 		// stop the form from submitting normally
-		return false;
+		//return false;
 
 	});
 
