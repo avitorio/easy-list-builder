@@ -127,6 +127,10 @@ add_action('admin_enqueue_scripts', 'elb_admin_scripts');
 // hint: register admin options
 add_action('admin_init', 'elb_register_options');
 
+//1.10
+// register activate/deactivate/uninstall functions
+register_activation_hook(__FILE__, 'elb_activate_plugin');
+
 /* 2. SHORTCODES */
 
 // 2.1
@@ -769,6 +773,58 @@ function elb_confirm_subscription( $subscriber_id, $list_id ) {
 	}
 
 	return $optin_complete;
+}
+
+//5.8
+// create custom tables for plugin
+function elb_create_plugin_tables() {
+
+	global $wpdb;
+
+	// setup return variable
+	$return_value = false;
+
+	try {
+
+		$table_name = $wpdb->prefix . 'elb_reward_links';
+		$charset_collate = $wpdb->get_charset_collate();
+		
+		// sql for our table creation
+		$sql = "CREATE TABLE $table_name (
+			id mediumint(11) NOT NULL AUTO_INCREMENT,
+			uid varchar(128) NOT NULL,
+			subscriber_id mediumint(11) NOT NULL,
+			list_id mediumint(11) NOT NULL,
+			attachment_id mediumint(11) NOT NULL,
+			downloads mediumint(11) DEFAULT 0 NOT NULL,
+			UNIQUE KEY id (id)
+			) $charset_collate;";
+
+		// make sure we include wordpress functions for dbDelta
+		require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+
+		// dbDelta will create a new table if none exists or update an existing one
+		dbDelta($sql);
+
+		// return value
+		$return_value = true;
+
+	} catch (Exception $e) {
+
+		var_dump($e->getMessage());
+		die();
+	}
+
+	return $return_value;
+}
+
+//5.9
+// runs on plugin activation
+function elb_activate_plugin() {
+
+	// setup custom database tables
+	elb_create_plugin_tables();
+
 }
 
 /* 6. HELPERS */
