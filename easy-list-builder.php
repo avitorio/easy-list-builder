@@ -113,7 +113,7 @@ add_action('wp_enqueue_scripts', 'elb_public_scripts');
 add_filter('acf/settings/path', 'elb_acf_settings_path');
 add_filter('acf/settings/dir', 'elb_acf_settings_dir');
 add_filter('acf/settings/show_admin', 'elb_acf_settings_show_admin');
-if( !defined('ACF_LITE')) define('ACF_LITE',  true); // turn off ACF plugin menu
+//if( !defined('ACF_LITE')) define('ACF_LITE',  true); // turn off ACF plugin menu
 
 //1.7
 // hint: register custom menus
@@ -383,6 +383,7 @@ function elb_list_column_headers($columns) {
 	$columns = array(
 		'cb' => '<input type="checkbox" />',
 		'title' => __('List Name'),
+		'reward' => __('Opt-in Reward'),
 		'shortcode' => __('Shortcode')
 	);
 
@@ -400,7 +401,19 @@ function elb_list_column_data($column, $post_id) {
 	switch($column) {
 
 		case 'shortcode':
-			$output .= '[elb_form id='. $post_id . ']';
+			$output .= '[slb_form id="'. $post_id .'"]';
+			break;
+			
+
+		case 'reward':
+			$reward = elb_get_list_reward( $post_id );
+
+			if ( $reward !== false ) {
+
+				$output .= '<a href="' . $reward['file']['url'] . '" download="' . $reward['title'] . '">' . $reward['title'] . '</a>';
+
+			}
+
 			break;
 
 	}
@@ -744,7 +757,7 @@ function elb_confirm_subscription( $subscriber_id, $list_id ) {
 	if ( $subscription_saved ) {
 
 		// send email
-		$email_sent = elb_send_subscriber_email( $subscriber_id, 'subscription_confirmed', $list_id )
+		$email_sent = elb_send_subscriber_email( $subscriber_id, 'subscription_confirmed', $list_id );
 
 		// if email sent
 		if ($email_sent) {
@@ -895,6 +908,19 @@ function elb_get_acf_key($field_name) {
 		case 'elb_subscriptions':
 			$field_key = 'field_57bc0583b1d35';
 			break;
+
+		case 'elb_enable_reward':
+			$field_key = 'field_57c840a86fd74';
+			break;
+
+		case 'elb_reward_title':
+			$field_key = 'field_57c841046fd75';
+			break;
+
+		case 'elb_reward_file':
+			$field_key = 'field_57c8413f6fd76';
+			break;
+
 	}
 
 	return $field_key;
@@ -1416,6 +1442,40 @@ function elb_get_message_html( $message, $message_type ) {
 	return $output;
 
 
+}
+
+// 6.19
+// return false if list has no reward or returns the object containing file and title if it does
+function elb_get_list_reward( $list_id ) {
+
+	// setup return data
+	$reward_data = false;
+
+	// get enable_reward alue
+	$enable_reward = ( get_field( elb_get_acf_key('elb_enable_reward'), $list_id) ) ? true : false;
+
+	// if reward is enabled
+	if ( $enable_reward) {
+
+		// get reward file
+		$reward_file = ( get_field(elb_get_acf_key('elb_reward_file'), $list_id) ) ? get_field( elb_get_acf_key('elb_reward_file'), $list_id) : false;
+
+		// get reward title
+		$reward_title = ( get_field (elb_get_acf_key('elb_reward_title'), $list_id) ) ? get_field( elb_get_acf_key('elb_reward_title'), $list_id) : 'Reward';
+
+		// if reward_file is a valid array
+		if ( is_array($reward_file) ) {
+
+
+			// setup return data
+			$reward_data = array(
+				'file' => $reward_file,
+				'title' => $reward_title,
+			);
+		}	
+	}
+
+	return $reward_data;
 }
 
 
