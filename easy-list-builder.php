@@ -25,6 +25,8 @@ Text Domain: easy-list-builder
 		1.7 - register custom menus
 		1.8 - register admin javascript files
 		1.9 - register admin options
+		1.10 - 
+		1.11
 
 	2. SHORTCODES
 		2.1 - elb_register_shortcodes()
@@ -80,6 +82,7 @@ Text Domain: easy-list-builder
 		6.18
 		6.19 - elb_get_list_reward()
 		6.20 -
+		6.21 - 
 
 	7. CUSTOM POST TYPES
 		7.1 - subscribers
@@ -146,6 +149,10 @@ add_action('admin_init', 'elb_register_options');
 //1.10
 // register activate/deactivate/uninstall functions
 register_activation_hook(__FILE__, 'elb_activate_plugin');
+
+//1.11
+// trigger rewards link
+add_action('wp', 'elb_trigger_reward_download');
 
 /* 2. SHORTCODES */
 
@@ -1763,6 +1770,55 @@ function elb_generate_reward_uid( $subscriber_id, $list_id ) {
 
 	return $uid;
 
+}
+
+//6.22
+// return false if list has no reward or return associative array if reward exists
+function elb_get_reward( $uid ) {
+
+	global $wpdb;
+
+	// setup return data
+	$reward_data = false;
+
+	// reward links download table name
+	$table_name = $wpdb->prefix . 'elb_reward_links';
+
+	// get list id from reward link
+	$list_id = $wpdb->get_var(
+		$wpdb->prepare(
+			'SELECT list_id
+			FROM $table_name
+			WHERE uid = %s',
+			$uid
+		)
+	);
+
+	// get download from reward link
+	$downloads = $wpdb->get_var(
+		$wpdb->prepare(
+			'SELECT downloads
+			FROM $table_name
+			WHERE uid = %s',
+			$uid
+		)
+	);
+
+	// get reward data
+	$reward = elb_get_list_reward( $list_id );
+
+	// if reward was found
+	if ( $reward !== false ) {
+
+		// set reward data
+		$reward_data = $reward;
+
+		// add downloads to reward data
+		$reward_data['downloads'] = $downloads;
+
+	}
+
+	return $reward_data;
 }
 
 
