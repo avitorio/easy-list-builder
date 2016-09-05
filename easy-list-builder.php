@@ -60,6 +60,8 @@ Text Domain: easy-list-builder
 		5.8
 		5.9
 		5.10
+		5.11
+		5.12
 
 	6. HELPERS
 		6.1 - elb_subscriber_has_subscription()
@@ -192,15 +194,17 @@ function elb_form_shortcode($args, $content="") {
 					$output .= '<h3 class="elb-title">' . $title . '</h3>';
 				};
 
-				$output .= '<p class="elb-input-container">
-					<label>Your Name</label>
-					<input type="text" name="elb_fname" placeholder="First Name">
-					<input type="text" name="elb_lname" placeholder="Last Name">
-				</p>
-				<p class="elb-input-container">
-					<label>Your Email</label>
-					<input type="email" name="elb_email" placeholder="Email">
-				</p>';
+				$output .= '
+					<p class="elb-input-container">
+						<label>Your Name</label>
+						<input type="text" name="elb_fname" placeholder="First Name">
+						<input type="text" name="elb_lname" placeholder="Last Name">
+					</p>
+					<p class="elb-input-container">
+						<label>Your Email</label>
+						<input type="email" name="elb_email" placeholder="Email">
+					</p>
+				';
 
 				// Include content to our form if content is passed to function
 				if ( strlen($content) ):
@@ -209,6 +213,22 @@ function elb_form_shortcode($args, $content="") {
 
 				endif;
 
+				// get reward
+				$reward = elb_get_list_reward( $list_id );
+
+				// check if reward exists
+				if ( $reward !== false ) {
+
+					// include message about reward
+					$output .= '
+						<div class="elb-content elb-reward-message">
+							<p>Get a FREE DOWNLOAD of <strong>' . $reward['title'] . '</strong> when you join this list!</p>
+						</div>
+					';
+
+				}
+
+				// complete the form
 				$output .= ' 
 
 				<p class="elb-input-container">
@@ -346,11 +366,15 @@ function elb_download_reward_shortcode( $args, $content='' ) {
 	$reward = elb_get_reward( $uid );
 
 	// if reward not found
-	if ( $reward === false ) { /*
+	if ( $reward === false ) {
 
-		$output .= elb_get_message_html( 'This link has reached it\'s download limit', 'warning');
+		if ($reward['downloads'] >= elb_get_option('elb_download_limit')) { 
 
-	} else { */
+			$output .= elb_get_message_html( 'This link has reached it\'s download limit', 'warning');
+
+		}
+
+	} else { 
 
 		$output .= elb_get_message_html( 'This link is invalid', 'error');
 
@@ -926,14 +950,15 @@ function elb_trigger_reward_download() {
 
 	if ( $post->ID = elb_get_option( 'elb_reward_page_id') && isset($_GET['reward'])) {
 
-		$uid = (string)$_GET['reward'];
+		$uid = ($_GET['reward']) ? (string)$_GET['reward'] : 0;
 
 		// get reward from link uid
 		$reward = elb_get_reward( $uid );
 
 		// if reward was found
-		if ( $reward !== false //&& $reward['downloads'] < elb_get_option('elb_download_limit') 
-			) {
+		if ( $reward !== false && $reward['downloads'] < elb_get_option('elb_download_limit') ) {
+
+			elb_update_reward_links_downloads( $uid );
 
 			// trigger browser download
 			header('Content-Type: application/' . $reward['file']['mime_type'], true, 200 );
@@ -946,6 +971,52 @@ function elb_trigger_reward_download() {
 		}
 
 	}
+}
+
+//5.12
+// this function increases te download link count by one
+function elb_update_reward_link_downloads( $uid ) {
+
+	global $wpdb;
+
+	// setup our return value
+	$return_value = false;
+
+	try {
+
+		$table_name = $wpdb->prefix . 'elb_reward_links';
+
+		// get current download count
+		$current_count = $wpdb->get_var( 
+			$wpdb->prepare(
+				'SELECT downloads
+				FROM $table_name
+				WHERE uid = %s',
+				$uid 
+			)
+		);
+
+		$current_count = (int)$current_count + 1;
+
+		$wpdb->query( 
+			$wpdb->prepare(
+				'UPDATE $table_name
+				SET downloads = $current_count
+				WHERE uid = %s',
+				$uid 
+			)
+		);
+
+		$return_value = true;
+
+	} catch (Exception $e) {
+
+		// php error
+
+	}
+
+	return $return_value;
+
 }
 
 
@@ -1461,7 +1532,7 @@ function elb_get_email_template( $subscriber_id, $email_template_name, $list_id)
 					$download_link = elb_get_reward_link( $subscriber_id, $list_id );
 
 					// set reward text
-					$reward_text = '<p>Here is your <a href="' . $download_link . '">UNIQUE DOWNLOAD LINK</a> for ' . $reward['title'] . '</p>';
+					$reward_text = '<p>Here is your <a href="' . $download_link . '">UNIQUE DOWNLOAD LINK</a> for ' . $reward['title'] . '. This link will expire after'. $download_limit . '.</p>';
 
 					break;
 
