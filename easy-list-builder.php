@@ -123,6 +123,7 @@ add_action('wp_ajax_nopriv_elb_save_subscription', 'elb_save_subscription'); // 
 add_action('wp_ajax_elb_save_subscription', 'elb_save_subscription'); // admin user
 add_action('wp_ajax_nopriv_elb_unsubscribe', 'elb_unsubscribe'); // regular website visitor
 add_action('wp_ajax_elb_unsubscribe', 'elb_unsubscribe'); // admin user
+add_action('wp_ajax_elb_download_subscribers_csv', 'elb_download_subscribers_csv'); // admin user
 
 
 //1.5
@@ -1019,6 +1020,92 @@ function elb_update_reward_link_downloads( $uid ) {
 
 }
 
+//5.13
+// this function generates a csv file for our subscriber data
+// it expects $_GET['list_id'] to be set in the URL
+function elb_download_subscribers_csv() {
+
+	// get the list id from the URL scope
+	$list_id = ( isset($_GET['list_id'])) ? (int)$_GET['list_id'] : 0;
+
+	// setup our return data
+	$csv = '';
+
+	// get the list object
+	$list = elb_post( $list_id );
+
+	// get the list's subscribers or get all subscribers if no list is given
+	$subscribers = elb_get_list_subscribers( $list_id );
+
+	// if we have confirmed subscribers
+	if ( $subscribers !== false ) {
+
+		// get the current date
+		$now = new DateTime();
+
+		// setup a unique filename for the generated export file
+		$fn1 = 'easy-list-builder-export-list-id-' . $list_id . '-date-' . $now->format('Y-m-d') . '.csv';
+		$fn2 = plugin_dir_path( __FILE__ ) . 'exports/' . $fn1;
+
+		// open new file in write mode
+		$fp = fopen($fn2, 'w');
+
+		// get the first subscriber's data
+		$subscriber_data = elb_get_subscriber_data( $subscribers[0] );
+
+		// remove the subscriptions and name column for the data
+		unset($subscriber_data['subscriptions']);
+		unset($subscriber_data['name']);
+
+		// build our csv header array from $subscriber_data's data keys
+		$csv_headers = array();
+
+		foreach ( $subscriber_data as $key => $value ) {
+			array_push($csv_headers, $key);
+		}
+
+		// append csv headers to our csv file
+		fputcsv($fp, $csv_headers);
+
+		// loop over all subscribers
+		foreach ( $subscribers as &$subscriber_id) {
+
+			// get the subscriber data of the current subscriber
+			$subscriber_data = elb_get_subscriber_data( $subscriber_id );
+
+			// remove the subscriptions and name column for the data
+			unset($subscriber_data['subscriptions']);
+			unset($subscriber_data['name']);
+
+			// append this subscriber data to our csv file
+			fputcsv($fp, $subscriber_data);
+
+		}
+
+		// read open our file in read mode
+		$fp = fopen( $fn2, 'r' );
+
+		// read our csv file and store its content in $fc
+		$fc = fread( $fp, filesize($fn2) );
+
+		//close our open file pointer
+		fclose($fp);
+
+		// setup file headers
+		header("Content-Type: application/csv");
+		header("Content-Disposition: attachment; filename=" . $fn1);
+
+		// echo the contents of our file and return it to the browser
+		echo($fc);
+
+		// exit php processes
+		exit;
+	} 
+
+	// return false if unable to fetch subscribers
+	return false;
+}
+
 
 /* 6. HELPERS */
 
@@ -1890,6 +1977,80 @@ function elb_get_reward( $uid ) {
 	}
 
 	return $reward_data;
+}
+
+//6.23
+// return array of subscribers ids
+function elb_get_list_subscribers( $list_id ) {
+
+	// setup return variable
+	$subscribers = false;
+
+	// get list object
+	$list = get_post( $list_id );
+
+	if ( elb_validate_list( $list ) ) {
+
+		// query all subscribers from this list only
+		$subscribers_query = new WP_Query(
+			array(
+				'post_type' => 'elb_subscriber',
+				'published' => true,
+				'posts_per_page' => -1,
+				'order_by' => 'post_date',
+				'order' => 'DESC',
+				'status' => 'publish',
+				'meta_query' => array(
+					array(
+						'key' => 'elb_subscriptions',
+						'value' => ':"' . $list->ID . '"',
+						'compare' => 'LIKE'
+					)
+				)
+			)
+		);
+
+	} elseif ( $list_id === 0 ) {
+
+		// query all subscribers from all lists
+		$subscribers_query = new WP_Query(
+			array(
+				'post_type' => 'elb_subscriber',
+				'published' => true,
+				'posts_per_page' => -1,
+				'order_by' => 'post_date',
+				'order' => 'DESC'
+			)
+		);
+	}
+
+	// if $subscribers_query is set and returns results
+	if ( isset( $subscibers_query ) && $subscribers_query->have_posts() ) {
+
+		// set subscribers array
+		$subscribers = array();
+
+		// loop over results
+		while ( $subscribers_query->have_posts() ) {
+
+			// get the post object
+			$subscribers_query->the_post();
+
+			$post_id = get_the_ID();
+
+			// append result to subscribers array
+			array_push( $subscribers, $post_id );
+
+		}
+	}
+
+	// reset wp query/postdata
+	wp_reset_query();
+	wp_reset_postdata();
+
+	// return results
+	return $subscribers;
+
 }
 
 
