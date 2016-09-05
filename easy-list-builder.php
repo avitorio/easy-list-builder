@@ -85,6 +85,11 @@ Text Domain: easy-list-builder
 		6.19 - elb_get_list_reward()
 		6.20 -
 		6.21 - 
+		6.22
+		6.23
+		6.24
+		6.25
+
 
 	7. CUSTOM POST TYPES
 		7.1 - subscribers
@@ -464,6 +469,7 @@ function elb_list_column_headers($columns) {
 		'cb' => '<input type="checkbox" />',
 		'title' => __('List Name'),
 		'reward' => __('Opt-in Reward'),
+		'subscribers' => __('Subscribers'),
 		'shortcode' => __('Shortcode')
 	);
 
@@ -480,11 +486,6 @@ function elb_list_column_data($column, $post_id) {
 
 	switch($column) {
 
-		case 'shortcode':
-			$output .= '[slb_form id="'. $post_id .'"]';
-			break;
-			
-
 		case 'reward':
 			$reward = elb_get_list_reward( $post_id );
 
@@ -494,6 +495,24 @@ function elb_list_column_data($column, $post_id) {
 
 			}
 
+			break;
+
+		case 'subscribers':
+			// get the count of current subscribers
+			$subscriber_count = elb_get_list_subscriber_count( $post_id );
+
+			// get our unique export link
+			$export_link = elb_get_export_link( $post_id );
+
+			// append subscriber count to our $output
+			$output .= $subscriber_count;
+
+			// if we have more than one subscriber add new export link to output
+			if ( $subscriber_count ) $output .= '<a href="' . $export_link . '"> Export</a>';
+			break;
+
+		case 'shortcode':
+			$output .= '[slb_form id="'. $post_id .'"]';
 			break;
 
 	}
@@ -1032,7 +1051,7 @@ function elb_download_subscribers_csv() {
 	$csv = '';
 
 	// get the list object
-	$list = elb_post( $list_id );
+	$list = get_post( $list_id );
 
 	// get the list's subscribers or get all subscribers if no list is given
 	$subscribers = elb_get_list_subscribers( $list_id );
@@ -1990,7 +2009,6 @@ function elb_get_list_subscribers( $list_id ) {
 	$list = get_post( $list_id );
 
 	if ( elb_validate_list( $list ) ) {
-
 		// query all subscribers from this list only
 		$subscribers_query = new WP_Query(
 			array(
@@ -2011,7 +2029,6 @@ function elb_get_list_subscribers( $list_id ) {
 		);
 
 	} elseif ( $list_id === 0 ) {
-
 		// query all subscribers from all lists
 		$subscribers_query = new WP_Query(
 			array(
@@ -2025,8 +2042,7 @@ function elb_get_list_subscribers( $list_id ) {
 	}
 
 	// if $subscribers_query is set and returns results
-	if ( isset( $subscibers_query ) && $subscribers_query->have_posts() ) {
-
+	if ( isset( $subscribers_query ) && $subscribers_query->have_posts() ) {
 		// set subscribers array
 		$subscribers = array();
 
@@ -2053,6 +2069,38 @@ function elb_get_list_subscribers( $list_id ) {
 
 }
 
+//6.24
+// returns the amount of subscribers in the list
+function elb_get_list_subscriber_count( $list_id = 0 ) {
+
+	// setup return variable
+	$count = 0;
+
+	// get array of subscribers ids
+	$subscribers = elb_get_list_subscribers( $list_id );
+
+	// if array was returned
+	if ( $subscribers !== false ) {
+
+		// update count
+		$count = count($subscribers);
+
+	}
+
+	return $count;
+}
+
+//6.25
+// returns unique link for downloading subscribers csv
+function elb_get_export_link( $list_id = 0 ) {
+
+	$link_href = 'admin-ajax.php?action=elb_download_subscribers_csv&list_id=' . $list_id;
+
+	// return reward link
+	return esc_url($link_href);
+
+}
+
 
 /* 7. CUSTOM POST TYPES */
 
@@ -2071,13 +2119,18 @@ include_once( plugin_dir_path(__FILE__) . 'cpt/elb_list.php');
 // hint: dashboard admin page
 function elb_dashboard_admin_page() {
 	
-	
+	// get subscribers export link
+	$export_link = elb_get_export_link();
+
+
 	$output = '
 		<div class="wrap">
 			
 			<h2>Easy List Builder</h2>
 			
 			<p>The ultimate email list building plugin for WordPress. Capture new subscribers. Reward subscribers with a custom download upon opt-in. Build unlimited lists. Import and export subscribers easily with .csv</p>
+
+			<p><a href="' .$export_link . '" class="button button-primary">Export All Subscriber Data</a></p>
 		
 		</div>
 	';
