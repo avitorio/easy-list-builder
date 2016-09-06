@@ -129,6 +129,8 @@ add_action('wp_ajax_elb_save_subscription', 'elb_save_subscription'); // admin u
 add_action('wp_ajax_nopriv_elb_unsubscribe', 'elb_unsubscribe'); // regular website visitor
 add_action('wp_ajax_elb_unsubscribe', 'elb_unsubscribe'); // admin user
 add_action('wp_ajax_elb_download_subscribers_csv', 'elb_download_subscribers_csv'); // admin user
+add_action('wp_ajax_elb_parse_import_csv', 'elb_parse_import_csv'); // admin user
+
 
 
 //1.5
@@ -1125,6 +1127,66 @@ function elb_download_subscribers_csv() {
 	return false;
 }
 
+//5.14
+// retrieve csv file from server and parse it to a php array
+// it then returns that object as a json formatted object
+// this function is an ajax form handler 
+// it expects $_POST['elb_import_file_id']
+function elb_parse_import_csv() {
+
+	// setup return array
+	$result = array(
+		'status' => 0,
+		'message' => 'Error, could not parse import csv.',
+		'error' => '',
+		'data' => array(
+		)
+	);
+
+	try {
+
+		// get the attachment id from $_POST['elb_import_file_id']
+		$attachment_id = ( isset($_POST['elb_import_file_id']) ) ? esc_attr( $_POST['elb_import_file_id'] ) : 0;
+
+		// get the filename using wp's get attached_file
+		$filename = get_attached_file( $attachment_id );
+
+		// if we got a filename
+		if ( $filename !== false ) {
+
+
+			// parse the data to a php array using elb_csv_to_array
+			$csv_data = elb_csv_to_array( $filename, ',' );
+
+			// if we were able to parse the file and there is data in it
+			if ( $csv_data !== false && count( $csv_data ) ) {
+
+				// append the data to our result array and return success
+				$result = array(
+					'status' => 1,
+					'message' => 'CSV import data parsed successfully.',
+					'error' => '',
+					'data' => $csv_data
+				);			
+
+			}
+
+		} else {
+
+			$result['error'] = 'The import file does not exist.';
+
+		}
+
+	} catch ( Exception $e ) {
+
+		// php error
+
+	}
+
+	elb_return_json( $result );
+
+}
+
 
 /* 6. HELPERS */
 
@@ -2101,6 +2163,67 @@ function elb_get_export_link( $list_id = 0 ) {
 
 }
 
+//6.26
+// reads a csv file and converts to php array
+function elb_csv_to_array( $filename='', $delimiter=',') {
+
+	// this is an important setting
+	ini_set('auto_detect_line_endings', true);
+
+	// check if file exists and is readable
+	if ( !file_exists( $filename ) || !is_readable( $filename ) ) {
+
+		return FALSE;
+
+	}
+
+	// setup our return data
+	$return_data = array();
+
+	// if we can open and read the file
+	if ( ( $handle = fopen( $filename, 'r' ) ) !== FALSE ) {
+
+		$row = 0;
+
+		// while data exists loop over data
+		while ( ( $data = fgetcsv($handle, 1000, ',')) !== FALSE ) {
+
+			// count the number of items in the data
+			$num = count($data);
+
+			// increment our row variable
+			$row++;
+
+			// setup our row data array
+			$row_data = array();
+
+			// loop over all items and append them to our row data
+			for ( $c = 0; $c < $num; $c++ ) {
+
+				// if this is the first row set it up as our header
+				if ( $row == 1 ) {
+
+					$header[] = $data[$c];
+
+				} else {
+
+					// all rows greater than 1
+					// add row data item
+					$return_data[$row-2][$header[$c]] = $data[$c]; 
+
+				}
+			}
+		}
+
+		// close our file
+		fclose( $handle );
+
+	}
+
+	return $return_data;
+
+}
+
 
 /* 7. CUSTOM POST TYPES */
 
@@ -2143,18 +2266,99 @@ function elb_dashboard_admin_page() {
 // hint: import subscribers admin page
 function elb_import_admin_page() {
 	
-	
-	$output = '
-		<div class="wrap">
+	// enque special scripts required for the file import field
+	wp_enqueue_media();
+
+	echo('<div class="wrap" id="import_subscribers">
 			
 			<h2>Import Subscribers</h2>
+						
+			<form id="import_form_1">
 			
-			<p>Page description...</p>
-		
-		</div>
-	';
+				<table class="form-table">
+				
+					<tbody>
+				
+						<tr>
+							<th scope="row"><label for="elb_import_file">Import CSV</label></th>
+							<td>
+								
+								<div class="wp-uploader">
+								    <input type="text" name="elb_import_file_url" class="file-url regular-text" accept="csv">
+								    <input type="hidden" name="elb_import_file_id" class="file-id" value="0" />
+								    <input type="button" name="upload-btn" class="upload-btn button-secondary" value="Upload">
+								</div>
+								
+								
+								<p class="description" id="elb_import_file-description">This is the page where Easy List Builder will send subscribers to manage their subscriptions. <br />
+									IMPORTANT: In order to work, the page you select must contain the shortcode: <strong>[elb_manage_subscriptions]</strong>.</p>
+							</td>
+						</tr>
+						
+					</tbody>
+					
+				</table>
+				
+			</form>
+			
+			<form id="import_form_2">
+				
+				<table class="form-table">
+				
+					<tbody class="elb-dynamic-content">
+						
+					</tbody>
+					
+					<tbody class="form-table show-only-on-valid" style="display: none">
+						
+						<tr>
+							<th scope="row"><label>Import To List</label></th>
+							<td>
+								<select name="elb_import_list_id">');
+									
+									
+										// get all our email lists
+										$lists = get_posts(
+											array(
+												'post_type'			=>'elb_list',
+												'status'			=>'publish',
+												'posts_per_page'   	=> -1,
+												'orderby'         	=> 'post_title',
+												'order'            	=> 'ASC',
+											)
+										);
+										
+										// loop over each email list
+										foreach( $lists as &$list ):
+										
+											// create the select option for that list
+											$option = '
+												<option value="'. $list->ID .'">
+													'. $list->post_title .'
+												</option>';
+											
+											// echo the new option	
+											echo $option;
+											
+										
+										endforeach;
+										
+								echo('</select>
+								<p class="description"></p>
+							</td>
+						</tr>
+						
+					</tbody>
+					
+				</table>
+				
+				<p class="submit show-only-on-valid" style="display:none"><input type="submit" name="submit" id="submit" class="button button-primary" value="Import"></p>
+				
+			</form>
+			
+	</div>
 	
-	echo $output;
+	');
 	
 }
 
