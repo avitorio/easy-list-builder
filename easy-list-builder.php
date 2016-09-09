@@ -162,6 +162,7 @@ add_action('admin_init', 'elb_register_options');
 //1.10
 // register activate/deactivate/uninstall functions
 register_activation_hook(__FILE__, 'elb_activate_plugin');
+add_action( 'admin_notices', 'elb_check_wp_version');
 
 //1.11
 // trigger rewards link
@@ -1288,6 +1289,39 @@ function elb_import_subscribers() {
 
 }
 
+// 5.17
+// checks the current version of wordpress and displays a message in the plugin page if the version is untested
+function elb_check_wp_version() {
+	
+	global $pagenow;
+	
+	
+	if ( $pagenow == 'plugins.php' && is_plugin_active('easy-list-builder/easy-list-builder.php') ) {
+	
+		// get the wp version
+		$wp_version = get_bloginfo('version');
+		
+		// tested vesions
+		// these are the versions we've tested our plugin in
+		$tested_versions = array(
+			'4.2.0',
+		);
+		
+		// IF the current wp version is not in our tested versions...
+		if( !in_array( $wp_version, $tested_versions ) ) {
+			
+			// get notice html
+			$notice = elb_get_admin_notice('Easy List Builder has not been tested in your version of WordPress. It still may work though...','error');
+			
+			// echo the notice html
+			echo( $notice );
+			
+		}
+	
+	}
+	
+}
+
 
 /* 6. HELPERS */
 
@@ -2323,6 +2357,36 @@ function elb_csv_to_array( $filename='', $delimiter=',') {
 
 	return $return_data;
 
+}
+
+// 6.27
+// hint: returns html formatted for WP admin notices
+function elb_get_admin_notice( $message, $class ) {
+	
+	// setup our return variable
+	$output = '';
+	
+	try {
+		
+		// create output html
+		$output = '
+		 <div class="'. $class .' notice is-dismissible">
+		    <p>'. $message .'</p>
+		    <button type="button" class="notice-dismiss">
+				<span class="screen-reader-text">Dismiss this notice.</span>
+			</button>
+		</div>
+		';
+	    
+	} catch( Exception $e ) {
+		
+		// php error
+		
+	}
+	
+	// return output
+	return $output;
+	
 }
 
 
