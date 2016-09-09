@@ -85,8 +85,6 @@ jQuery(document).ready(function($){
 	// this event triggered when import_form_1 file is selected
 	$('.file-id',$import_form_1).bind('change',function(){
 		
-		alert( 'a csv file has been added successfully' );
-		
 		// get the form data and serialize it
 		var form_1_data = $import_form_1.serialize();
 
@@ -161,16 +159,67 @@ jQuery(document).ready(function($){
 		if ( checked ) {
 
 			// trigger click on all inputs not checked
-			$('[name="elb_import_rows"]:not(:checked)', $import_form_2).trigger('click');
+			$('[name="elb_import_rows[]"]:not(:checked)', $import_form_2).trigger('click');
 
 		} else {
 
 			// trigger click on all inputs not checked
-			$('[name="elb_import_rows"]:checked', $import_form_2).trigger('click');
+			$('[name="elb_import_rows[]"]:checked', $import_form_2).trigger('click');
 
 		}
 
 	})
+
+	// ajax form handler for our import subscribers form #2
+	$(document).on('submit', '#import_subscribers #import_form_2', function(){
+
+		// get the form data and serialize it
+		var form_2_data = $import_form_2.serialize();
+
+		// set up form_1 action url
+		var form_2_action_url = wpajax_url + '?action=elb_import_subscribers';
+
+		// send the file to php for processing...
+		$.ajax({
+			url: form_2_action_url,
+			method: 'post',
+			dataType: 'json',
+			data: form_2_data,
+			'success': function(response){
+
+				if ( response.status == 1 ) {
+
+					// reset our import form
+					$('.elb-dynamic-content').html('');
+					$('.show-only-on-valid', $import_form_2).hide();
+					$('.file-url', $import_form_1).val('');
+					$('.file-id', $import_form_1).val(0);
+
+					alert( response.message );
+
+				} else {
+
+					// error
+					var msg = response.message + '\r' + response.error + '\r';
+
+					$.each( response.errors, function(key, value) {
+
+						msg += '\r';
+						msg += '- ' + value; 
+
+					});
+
+					alert( msg );
+
+				}
+			}
+		});	
+
+		// stop form from submitting normaly
+		return false;
+
+	});
+
 
 	// this function returns custom html for import form #2
 	function elb_get_form_2_html( subscribers ) {
@@ -232,7 +281,7 @@ jQuery(document).ready(function($){
 			var tr = '<tr>';
 			
 			// add our first table cell
-			var th = '<th scope="row" class=" check-column"><input type="checkbox" id="cb-select-'+ row_id +'" name="elb_import_rows" class="elb-input" value="'+ row_id +'" /></th>';
+			var th = '<th scope="row" class=" check-column"><input type="checkbox" id="cb-select-'+ row_id +'" name="elb_import_rows[]" class="elb-input" value="'+ row_id +'" /></th>';
 				
 			tr += th;
 			
@@ -343,7 +392,7 @@ jQuery(document).ready(function($){
 		var is_valid = true;
 
 		// check if no subscribers are selected
-		if ( $('[name="elb_import_rows"]:checked', $import_form_2).length == 0 ) {
+		if ( $('[name="elb_import_rows[]"]:checked', $import_form_2).length == 0 ) {
 
 			is_valid = false;
 

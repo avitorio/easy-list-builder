@@ -62,6 +62,9 @@ Text Domain: easy-list-builder
 		5.10
 		5.11
 		5.12
+		5.13
+		5.14
+		5.15
 
 	6. HELPERS
 		6.1 - elb_subscriber_has_subscription()
@@ -119,7 +122,6 @@ add_filter('manage_edit-elb_list_columns', 'elb_list_column_headers');
 // 1.3
 // hint: register custom admin column data
 add_filter('manage_elb_subscriber_posts_custom_column', 'elb_subscriber_column_data', 1, 2);
-add_action('admin_head-edit.php','elb_register_custom_admin_titles');
 add_filter('manage_elb_list_posts_custom_column', 'elb_list_column_data', 1, 2);
 
 //1.4
@@ -130,6 +132,7 @@ add_action('wp_ajax_nopriv_elb_unsubscribe', 'elb_unsubscribe'); // regular webs
 add_action('wp_ajax_elb_unsubscribe', 'elb_unsubscribe'); // admin user
 add_action('wp_ajax_elb_download_subscribers_csv', 'elb_download_subscribers_csv'); // admin user
 add_action('wp_ajax_elb_parse_import_csv', 'elb_parse_import_csv'); // admin user
+add_action('wp_ajax_elb_import_subscribers', 'elb_import_subscribers'); // admin user
 
 
 
@@ -418,7 +421,7 @@ function elb_subscriber_column_data($column, $post_id) {
 
 	switch($column) {
 
-		case 'title':
+		case 'name':
 			// get the custom name data
 			$fname = get_field('elb_fname', $post_id);
 			$lname = get_field('elb_lname', $post_id);
@@ -514,7 +517,7 @@ function elb_list_column_data($column, $post_id) {
 			break;
 
 		case 'shortcode':
-			$output .= '[slb_form id="'. $post_id .'"]';
+			$output .= '[elb_form id="'. $post_id .'"]';
 			break;
 
 	}
@@ -970,7 +973,7 @@ function elb_trigger_reward_download() {
 
 	global $post;
 
-	if ( $post->ID = elb_get_option( 'elb_reward_page_id') && isset($_GET['reward'])) {
+	if ( $post->ID == elb_get_option( 'elb_reward_page_id' ) && isset( $_GET['reward'] ) ) {
 
 		$uid = ($_GET['reward']) ? (string)$_GET['reward'] : 0;
 
@@ -1183,6 +1186,104 @@ function elb_parse_import_csv() {
 
 	}
 
+	elb_return_json( $result );
+
+}
+
+//5.15
+// This imports subcribers from our import admin page
+// this function is a form handler and expects subscriber data in $_POST
+function elb_import_subscribers() {
+
+	// setup our return array
+	$result = array(
+		'status' => 0,
+		'message' => 'Could not import subscribers',
+		'error' => '',
+		'errors' => array()
+	);
+
+	try {
+
+		// get the assignment values
+		$fname_column = ( isset( $_POST['elb_fname_column'] ) ) ? (int)$_POST['elb_fname_column'] : 0;
+		$lname_column = ( isset( $_POST['elb_lname_column'] ) ) ? (int)$_POST['elb_lname_column'] : 0;
+		$email_column = ( isset( $_POST['elb_email_column'] ) ) ? (int)$_POST['elb_email_column'] : 0;
+
+		// get the list id to import to
+		$list_id = ( isset( $_POST['elb_import_list_id'] ) ) ? (int)$_POST['elb_import_list_id'] : 0;
+
+		// get the selected subscribers row to import
+		$selected_rows = ( isset( $_POST['elb_import_rows'] ) ) ? (array)$_POST['elb_import_rows'] : 0;
+
+		// setup the data fo selected rows
+		$subscribers = array();
+
+		// variable to count subscribers added
+		$added_count = 0;
+
+		// loop over selected rows and get the data
+		foreach ( $selected_rows as &$row_id ) {
+
+			// build subscribers data
+			$subscriber_data = array(
+				'fname' => (string)$_POST['s_' . $row_id . '_' . $fname_column],
+				'lname' => (string)$_POST['s_' . $row_id . '_' . $lname_column],
+				'email' => (string)$_POST['s_' . $row_id . '_' . $email_column],
+			);
+
+			// if the subscriber email is invalid
+			if ( !is_email( $subscriber_data['email'] ) ) {
+
+				// don't attempt to add the subscriber if the email is invalid
+				$result['errors'][] = 'Invalid email detected:' . $subscriber_data['email'] . '. This subscriber was not added'; 
+
+			} else {
+
+				// if the subscriber email is valid
+				// add subscriber to database
+				$subscriber_id = elb_save_subscriber( $subscriber_data );
+
+				// if subscriber was updated or created successfully
+				if ( $subscriber_id ) {
+
+					// add subscription for this subscriber without opt-in
+					$subscription_added = elb_add_subscription( $subscriber_id, $list_id );
+
+					// update our list count
+					$added_count++;
+
+				}
+
+			}
+
+		}
+
+		// if no subscribers were added
+		if ( $added_count === 0 ) {
+
+			// pass error message
+			$result['error'] = 'No subscribers were imported.';
+
+		} else {
+
+			$result = array(
+				'status' => 1,
+				'message' => $added_count . ' subscribers imported successfully',
+				'error' => '',
+				'errors' => array()
+			);
+
+		}
+
+
+	} catch (Exception $e) {
+
+		// php error
+
+	}
+
+	// return result as json
 	elb_return_json( $result );
 
 }
@@ -2290,8 +2391,7 @@ function elb_import_admin_page() {
 								</div>
 								
 								
-								<p class="description" id="elb_import_file-description">This is the page where Easy List Builder will send subscribers to manage their subscriptions. <br />
-									IMPORTANT: In order to work, the page you select must contain the shortcode: <strong>[elb_manage_subscriptions]</strong>.</p>
+								<p class="description" id="elb_import_file-description">Expects a CSV file containing a "Name" (First, Last or Full) and "Email Address".</p>
 							</td>
 						</tr>
 						
@@ -2301,7 +2401,7 @@ function elb_import_admin_page() {
 				
 			</form>
 			
-			<form id="import_form_2">
+			<form id="import_form_2" method="post" action="/wp-admin/admin-ajax.php?action=elb_import_subscribers">
 				
 				<table class="form-table">
 				
