@@ -200,7 +200,8 @@ function elb_form_shortcode($args, $content="") {
 		<div class="elb">
 			<form id="elb_register_form" name="elb_form" class="elb-form" method="post" action="/wp-admin/admin-ajax.php?action=elb_save_subscription"> 
 
-				<input type="hidden" name="elb_list" value="' . $list_id . '">';
+				<input type="hidden" name="elb_list" value="' . $list_id . '">
+				'. wp_nonce_field('elb-register-subscription' . $list_id, '_wponce', true, false );
 
 				if(strlen($title)) {
 					// if title is set, show it
@@ -604,70 +605,75 @@ function elb_save_subscription() {
 		// get list id
 		$list_id = (int)$_POST['elb_list'];
 
-		// prepare subscriber data
-		$subscriber_data = array (
-			'fname' => esc_attr($_POST['elb_fname']),
-			'lname' => esc_attr($_POST['elb_lname']),
-			'email' => esc_attr($_POST['elb_email']),
-		);
+		// verify nonce
+		if ( check_ajax_referrer( 'elb-register-subscription', $list_id ) ) {
 
-		// set up errors array
-		$errors = array();
+			// prepare subscriber data
+			$subscriber_data = array (
+				'fname' => esc_attr($_POST['elb_fname']),
+				'lname' => esc_attr($_POST['elb_lname']),
+				'email' => esc_attr($_POST['elb_email']),
+			);
 
-		// validate fields
-		if ( !strlen($subscriber_data['fname'])) $errors['fname'] = 'First name field is required.';
-		if ( !strlen($subscriber_data['email'])) $errors['email'] = 'Email address field is required.';
-		if ( strlen($subscriber_data['email']) && !is_email($subscriber_data['email'])) $errors['email'] = 'Email address must be valid.';
+			// set up errors array
+			$errors = array();
 
-		// check for errors
-		if ( count($errors)) {
+			// validate fields
+			if ( !strlen($subscriber_data['fname'])) $errors['fname'] = 'First name field is required.';
+			if ( !strlen($subscriber_data['email'])) $errors['email'] = 'Email address field is required.';
+			if ( strlen($subscriber_data['email']) && !is_email($subscriber_data['email'])) $errors['email'] = 'Email address must be valid.';
 
-			// append errors to result structure for later use
-			$result['error'] = 'Some fields are still required.';
-			$result['errors'] = $errors;
-		} 
+			// check for errors
+			if ( count($errors)) {
 
-		// if there are no errors proceed
-		else {
+				// append errors to result structure for later use
+				$result['error'] = 'Some fields are still required.';
+				$result['errors'] = $errors;
+			} 
 
-			// attempt to create/save subscriber
-			$subscriber_id = elb_save_subscriber($subscriber_data);
+			// if there are no errors proceed
+			else {
 
-			// if subscriber was saved successfully $subscriber_id will be greater than 0
-			if ($subscriber_id) {
+				// attempt to create/save subscriber
+				$subscriber_id = elb_save_subscriber($subscriber_data);
 
-				// if subscriber already has a subscription
-				if ( elb_subscriber_has_subscription( $subscriber_id, $list_id)) {
+				// if subscriber was saved successfully $subscriber_id will be greater than 0
+				if ($subscriber_id) {
 
-					// get list object
-					$list = get_post( $list_id);
+					// if subscriber already has a subscription
+					if ( elb_subscriber_has_subscription( $subscriber_id, $list_id)) {
 
-					// return detailed error
-					$result['error'] = esc_attr( $subscriber_data['email'] . ' is already subscribed to ' . $list->post_title . '.');
+						// get list object
+						$list = get_post( $list_id);
 
-				} else {
-
-					// send new subscriber a confirmation email, returns true if we are successful
-					$email_sent = elb_send_subscriber_email($subscriber_id, 'new_subscription', $list_id);
-
-					// if email was sent
-					if ( !$email_sent ) {
-
-						// email could not be sent
-						$result['error'] = 'Email could not be sent';
+						// return detailed error
+						$result['error'] = esc_attr( $subscriber_data['email'] . ' is already subscribed to ' . $list->post_title . '.');
 
 					} else {
 
-						// subscription saved
-						$result['status'] = 1;
-						$result['message'] = 'Success! A confirmation email has been sent to ' . $subscriber_data['email'];
+						// send new subscriber a confirmation email, returns true if we are successful
+						$email_sent = elb_send_subscriber_email($subscriber_id, 'new_subscription', $list_id);
 
-						// clean up: remove our empty error
-						unset( $result['error']);
-						
+						// if email was sent
+						if ( !$email_sent ) {
+
+							// email could not be sent
+							$result['error'] = 'Email could not be sent';
+
+						} else {
+
+							// subscription saved
+							$result['status'] = 1;
+							$result['message'] = 'Success! A confirmation email has been sent to ' . $subscriber_data['email'];
+
+							// clean up: remove our empty error
+							unset( $result['error']);
+							
+						}
 					}
 				}
 			}
+
 		}
 
 		
@@ -764,23 +770,28 @@ function elb_unsubscribe() {
 
 	try {
 
-		// if there are lists to emove
-		if( is_array($list_ids)) {
+		// verify nonce
+		if ( check_ajax_referrer( 'elb-register-subscription', $list_id ) ) {
 
-			// loop over lists to remove
-			foreach ($list_ids as &$list_id) {
+			// if there are lists to emove
+			if( is_array($list_ids)) {
 
-				// remove this subscription
-				elb_remove_subscription( $subscriber_id, $list_id);
+				// loop over lists to remove
+				foreach ($list_ids as &$list_id) {
+
+					// remove this subscription
+					elb_remove_subscription( $subscriber_id, $list_id);
+				}
 			}
+
+			// setup success status and message
+			$result['status'] = 1;
+			$result['message'] = 'Subscriptions updated.';
+
+			// get the udapted list of subscriptions as html
+			$result['html'] = elb_get_manage_subscriptions_html( $subscriber_id);
+			
 		}
-
-		// setup success status and message
-		$result['status'] = 1;
-		$result['message'] = 'Subscriptions updated.';
-
-		// get the udapted list of subscriptions as html
-		$result['html'] = elb_get_manage_subscriptions_html( $subscriber_id);
 
 	} catch (Exception $e) {
 
@@ -987,9 +998,17 @@ function elb_trigger_reward_download() {
 
 			elb_update_reward_links_downloads( $uid );
 
+			// get the reward mime-type
+			$mimetype = $reward['file']['mime_type'];
+
+			// extract the filetype from the mimetype
+			$mimetype_array = explode('/',$mimetype);
+			$filetype = $mimetype_array[1];
+
+
 			// trigger browser download
-			header('Content-Type: application/' . $reward['file']['mime_type'], true, 200 );
-			header('Content-Disposition: attachment; filename='. $reward['title']);
+			header('Content-Type: ' . $mimetype, true, 200 );
+			header('Content-Disposition: attachment; filename='. $reward['title'] . '.' . $filetype);
 			header('Pragma: no-cache');
 			header('Expires: 0');
 			readfile($reward['file']['url']);
@@ -1851,10 +1870,12 @@ function elb_get_manage_subscriptions_html($subscriber_id) {
 		// set the title
 		$title = $subscriber_data['fname'] . '\'s Subscriptions';
 
-		// build output html
+		$nonce = wp_nonce_field('elb-update-subscriptions' . $subscriber_id, '_wponce', true, false );
 
+		// build output html
 		$output = '
 			<form id="elb_manage_subscriptions_form" class="elb elb_form" method="post" action="/wp-admin/admin-ajax.php?action=elb_unsubscribe">
+			' . $nonce . '
 
 				<input type="hidden" name="subscriber_id" value="' . $subscriber_id . '">
 
