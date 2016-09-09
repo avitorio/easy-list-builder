@@ -163,6 +163,7 @@ add_action('admin_init', 'elb_register_options');
 // register activate/deactivate/uninstall functions
 register_activation_hook(__FILE__, 'elb_activate_plugin');
 add_action( 'admin_notices', 'elb_check_wp_version');
+register_uninstall_hook( __FILE__, 'elb_uninstall_plugin');
 
 //1.11
 // trigger rewards link
@@ -1289,7 +1290,7 @@ function elb_import_subscribers() {
 
 }
 
-// 5.17
+// 5.16
 // checks the current version of wordpress and displays a message in the plugin page if the version is untested
 function elb_check_wp_version() {
 	
@@ -1304,7 +1305,8 @@ function elb_check_wp_version() {
 		// tested vesions
 		// these are the versions we've tested our plugin in
 		$tested_versions = array(
-			'4.2.0',
+			'4.6',
+			'4.6.1',
 		);
 		
 		// IF the current wp version is not in our tested versions...
@@ -1321,6 +1323,144 @@ function elb_check_wp_version() {
 	}
 	
 }
+
+//5.17
+// functions for plugin uninstall
+function elb_uninstall_plugin() {
+	
+	// remove our custom plugin tables
+	elb_remove_plugin_tables();
+	// remove custom post types posts and data
+	elb_remove_post_data();
+	// remove plugin options
+	elb_remove_options();
+	
+}
+
+// 5.18
+// hint: removes our custom database tabels
+function elb_remove_plugin_tables() {
+	
+	// get WP's wpdb class
+	global $wpdb;
+	
+	// setup return variable
+	$tables_removed = false;
+	
+	try {
+		
+		// get our custom table name
+		$table_name = $wpdb->prefix . "elb_reward_links";
+	
+		// delete table from database
+		$tables_removed = $wpdb->query("DROP TABLE IF EXISTS $table_name;");
+	
+	} catch( Exception $e ) {
+		
+		
+	}
+	
+	// return result
+	return $tables_removed;
+	
+}
+
+// 5.19
+// hint: removes plugin related custom post type post data
+function elb_remove_post_data() {
+	
+	// get WP's wpdb class
+	global $wpdb;
+	
+	// setup return variable
+	$data_removed = false;
+	
+	try {
+		
+		// get our custom table name
+		$table_name = $wpdb->prefix . "posts";
+		
+		// set up custom post types array
+		$custom_post_types = array(
+			'elb_subscriber',
+			'elb_list'
+		);
+		
+		// remove data from the posts db table where post types are equal to our custom post types
+		$data_removed = $wpdb->query(
+			$wpdb->prepare( 
+				"
+					DELETE FROM $table_name 
+					WHERE post_type = %s OR post_type = %s
+				", 
+				$custom_post_types[0],
+				$custom_post_types[1]
+			) 
+		);
+		
+		// get the table names for postmet and posts with the correct prefix
+		$table_name_1 = $wpdb->prefix . "postmeta";
+		$table_name_2 = $wpdb->prefix . "posts";
+		
+		// delete orphaned meta data
+		$wpdb->query(
+			$wpdb->prepare( 
+				"
+				DELETE pm
+				FROM $table_name_1 pm
+				LEFT JOIN $table_name_1 wp ON wp.ID = pm.post_id
+				WHERE wp.ID IS NULL
+				"
+			) 
+		);
+		
+		
+		
+	} catch( Exception $e ) {
+		
+		// php error
+		
+	}
+	
+	// return result
+	return $data_removed;
+	
+}
+
+// 5.20
+// hint: removes any custom options from the database 
+function elb_remove_options() {
+	
+	$options_removed = false;
+	
+	try {
+	
+		// get plugin option settings
+		$options = elb_get_options_settings();
+		
+		// loop over all the settings
+		foreach( $options['settings'] as &$setting ):
+			
+			// unregister the setting
+			unregister_setting( $options['group'], $setting );
+		
+		endforeach;
+		
+		// return true if everything worked
+		$options_removed = true;
+	
+	} catch( Exception $e ) {
+		
+		// php error
+		
+	}
+	
+	// return result
+	return $options_removed;
+	
+}
+
+
 
 
 /* 6. HELPERS */
@@ -2389,6 +2529,27 @@ function elb_get_admin_notice( $message, $class ) {
 	
 }
 
+// 6.28
+// hint: get's an array of plugin option data (group and settings) so as to save it all in one place
+function elb_get_options_settings() {
+	
+	// setup our return data
+	$settings = array( 
+		'group'=>'elb_plugin_options',
+		'settings'=>array(
+			'elb_manage_subscription_page_id',
+			'elb_confirmation_page_id',
+			'elb_reward_page_id',
+			'elb_default_email_footer',
+			'elb_download_limit',
+		),
+	);
+	
+	// return option data
+	return $settings;
+	
+}
+
 
 /* 7. CUSTOM POST TYPES */
 
@@ -2614,17 +2775,22 @@ function elb_options_admin_page() {
 }
 
 /* 9. SETTINGS */
-//9.1
-// register plugin options
-function elb_register_options() {
-
-	// plugin options
-	register_setting('elb_plugin_options', 'elb_manage_subscription_page_id');
-	register_setting('elb_plugin_options', 'elb_confirmation_page_id');
-	register_setting('elb_plugin_options', 'elb_reward_page_id');
-	register_setting('elb_plugin_options', 'elb_default_email_footer');
-	register_setting('elb_plugin_options', 'elb_download_limit');
-
+// 9.1
+// registers plugin options
+function slb_register_options() {
+	
+	// get plugin options settings
+	
+	$options = elb_get_options_settings();
+	
+	// loop over settings
+	foreach( $options['settings'] as $setting ) {
+	
+		// register this setting
+		register_setting($options['group'], $setting);
+	
+	}
+	
 }
 
 
