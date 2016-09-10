@@ -123,6 +123,7 @@ add_filter('manage_edit-elb_list_columns', 'elb_list_column_headers');
 // hint: register custom admin column data
 add_filter('manage_elb_subscriber_posts_custom_column', 'elb_subscriber_column_data', 1, 2);
 add_filter('manage_elb_list_posts_custom_column', 'elb_list_column_data', 1, 2);
+add_action('admin_head-edit.php','elb_register_custom_admin_titles');
 
 //1.4
 // hint: register ajax actions
@@ -145,7 +146,7 @@ add_action('wp_enqueue_scripts', 'elb_public_scripts');
 add_filter('acf/settings/path', 'elb_acf_settings_path');
 add_filter('acf/settings/dir', 'elb_acf_settings_dir');
 add_filter('acf/settings/show_admin', 'elb_acf_settings_show_admin');
-//if( !defined('ACF_LITE')) define('ACF_LITE',  true); // turn off ACF plugin menu
+if( !defined('ACF_LITE')) define('ACF_LITE',  true); // turn off ACF plugin menu
 
 //1.7
 // hint: register custom menus
@@ -198,7 +199,7 @@ function elb_form_shortcode($args, $content="") {
 	// setup our output variable - the html form
 	$output = '
 		<div class="elb">
-			<form id="elb_register_form" name="elb_form" class="elb-form" method="post" action="/wp-admin/admin-ajax.php?action=elb_save_subscription"> 
+			<form id="elb_register_form" name="elb_form" class="elb-form" method="post" action="/wp-admin/admin-ajax.php?action=elb_save_subscription"  method="post"> 
 
 				<input type="hidden" name="elb_list" value="' . $list_id . '">
 				'. wp_nonce_field('elb-register-subscription' . $list_id, '_wponce', true, false );
@@ -401,43 +402,47 @@ function elb_download_reward_shortcode( $args, $content='' ) {
 
 /* 3. FILTERS */
 
-//3.1
-function elb_subscriber_column_headers($columns) {
 
+// 3.1
+function elb_subscriber_column_headers( $columns ) {
+	
 	// creating custom column header data
 	$columns = array(
-		'cb' => '<input type="checkbox" />',
-		'title' => __('Subscriber Name'),
-		'email' => __('Email Address'),
+		'cb'=>'<input type="checkbox" />',
+		'title'=>__('Subscriber Name'),
+		'email'=>__('Email Address'),	
 	);
-
-	// return new columns
+	
+	// returning new columns
 	return $columns;
-
+	
 }
 
-//3.2
-function elb_subscriber_column_data($column, $post_id) {
-
+// 3.2
+function elb_subscriber_column_data( $column, $post_id ) {
+	
 	// setup our return text
 	$output = '';
 
-	switch($column) {
-
+	switch( $column ) {
+		
 		case 'name':
 			// get the custom name data
-			$fname = get_field('elb_fname', $post_id);
-			$lname = get_field('elb_lname', $post_id);
-			$output .= $fname . ' ' . $lname;
+			$fname = get_field('elb_fname', $post_id );
+			$lname = get_field('elb_lname', $post_id );
+			$output .= $fname .' '. $lname;
 			break;
 		case 'email':
 			// get the custom email data
-			$email = get_field('elb_email', $post_id);
+			$email = get_field('elb_email', $post_id );
 			$output .= $email;
 			break;
+		
 	}
-
+	
+	// echo the output
 	echo $output;
+	
 }
 
 //3.2.2
@@ -445,7 +450,7 @@ function elb_register_custom_admin_titles() {
 	add_filter(
 		'the_title',
 		'elb_custom_admin_titles',
-		99,
+		100,
 		2
 	);
 }
@@ -456,7 +461,7 @@ function elb_custom_admin_titles($title, $post_id) {
 
 	$output = $title;
 
-	if (isset($post->post_type)):
+	if (isset($post->post_type)){
 		switch($post->post_type) {
 			case 'elb_subscriber':
 				$fname = get_field('elb_fname', $post_id);
@@ -464,7 +469,7 @@ function elb_custom_admin_titles($title, $post_id) {
 				$output = $fname . ' ' . $lname;
 				break;
 		}
-	endif;
+	}
 
 	return $output;
 }
@@ -606,7 +611,7 @@ function elb_save_subscription() {
 		$list_id = (int)$_POST['elb_list'];
 
 		// verify nonce
-		if ( check_ajax_referrer( 'elb-register-subscription', $list_id ) ) {
+		if ( check_ajax_referer( 'elb-register-subscription', $list_id ) ) {
 
 			// prepare subscriber data
 			$subscriber_data = array (
@@ -771,7 +776,7 @@ function elb_unsubscribe() {
 	try {
 
 		// verify nonce
-		if ( check_ajax_referrer( 'elb-register-subscription', $list_id ) ) {
+		if ( check_ajax_referer( 'elb-register-subscription', $list_id ) ) {
 
 			// if there are lists to emove
 			if( is_array($list_ids)) {
@@ -790,7 +795,7 @@ function elb_unsubscribe() {
 
 			// get the udapted list of subscriptions as html
 			$result['html'] = elb_get_manage_subscriptions_html( $subscriber_id);
-			
+
 		}
 
 	} catch (Exception $e) {
@@ -1328,11 +1333,18 @@ function elb_check_wp_version() {
 			'4.6.1',
 		);
 		
-		// IF the current wp version is not in our tested versions...
-		if( !in_array( $wp_version, $tested_versions ) ) {
+		$tested_range = array(4.0,4.6);
+		
+		// IF the current wp version is  in our tested versions...
+		// remove: if( !in_array( $wp_version, $tested_versions ) ):
+		if( (float)$wp_version >= (float)$tested_range[0] && (float)$wp_version <= (float)$tested_range[1] ) {
+		
+			// we're good!
+		
+		} else {
 			
 			// get notice html
-			$notice = elb_get_admin_notice('Easy List Builder has not been tested in your version of WordPress. It still may work though...','error');
+			$notice = elb_get_admin_notice('Easy List Builder has not been tested with your version of WordPress. It still may work though...','error');
 			
 			// echo the notice html
 			echo( $notice );
@@ -2798,7 +2810,7 @@ function elb_options_admin_page() {
 /* 9. SETTINGS */
 // 9.1
 // registers plugin options
-function slb_register_options() {
+function elb_register_options() {
 	
 	// get plugin options settings
 	
