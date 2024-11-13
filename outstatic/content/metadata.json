@@ -1,10 +1,10 @@
 {
-  "commit": "fa495d4bff4a7a894e853119595ebc99c6c6e5b9",
-  "generated": "2024-11-13T21:25:44.243Z",
+  "commit": "5dc20f4ca5241cd51ef1325cfef3c68919748462",
+  "generated": "2024-11-13T21:26:14.290Z",
   "metadata": [
     {
       "__outstatic": {
-        "commit": "fa495d4bff4a7a894e853119595ebc99c6c6e5b9",
+        "commit": "5dc20f4ca5241cd51ef1325cfef3c68919748462",
         "hash": "4210846055",
         "path": "outstatic/content/posts/friends.mdx"
       },
