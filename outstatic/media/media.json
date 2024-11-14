@@ -1,17 +1,6 @@
 {
-  "commit": "",
-  "generated": "2024-11-14T18:59:26.969Z",
+  "commit": "ed2670089dadc6d4b3f4926ed59b726b704a4b4d",
+  "generated": "2024-11-14T18:59:49.158Z",
   "media": [
-    {
-      "__outstatic": {
-        "commit": "",
-        "hash": "391211975",
-        "path": "exports/149-536x354-IwMD.jpg"
-      },
-      "alt": "",
-      "filename": "149-536x354-IwMD.jpg",
-      "publishedAt": "2024-11-14T18:59:26.969Z",
-      "type": "image"
-    }
   ]
 }
