@@ -1,23 +1,7 @@
 {
-  "commit": "4039219e5afdab66a079524c30729994220ecdf5",
-  "generated": "2024-11-15T21:25:42.590Z",
+  "commit": "ed966a0086dfa1ee64d2205f1fed18761997cdfc",
+  "generated": "2024-11-15T21:39:44.666Z",
   "metadata": [
-    {
-      "__outstatic": {
-        "commit": "23b0e15ede300d5c19198b360e84732fa261341f",
-        "hash": "2669789056",
-        "path": "outstatic/content/posts/friends.mdx"
-      },
-      "author": {
-        "name": "Andre Vitorio",
-        "picture": "https://avatars.githubusercontent.com/u/1417109?v=4"
-      },
-      "collection": "posts",
-      "publishedAt": "2024-11-13T20:41:20.319Z",
-      "slug": "friends",
-      "status": "draft",
-      "title": "Friends"
-    },
     {
       "__outstatic": {
         "commit": "4039219e5afdab66a079524c30729994220ecdf5",
@@ -33,6 +17,22 @@
       "slug": "let-me",
       "status": "draft",
       "title": "Let Me"
+    },
+    {
+      "__outstatic": {
+        "commit": "ed966a0086dfa1ee64d2205f1fed18761997cdfc",
+        "hash": "3450894380",
+        "path": "outstatic/content/posts/friends.mdx"
+      },
+      "author": {
+        "name": "Andre Vitorio",
+        "picture": "https://avatars.githubusercontent.com/u/1417109?v=4"
+      },
+      "collection": "posts",
+      "publishedAt": "2024-11-13T20:41:20.319Z",
+      "slug": "friends",
+      "status": "draft",
+      "title": "Friends"
     }
   ]
 }
