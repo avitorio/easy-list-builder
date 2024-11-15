@@ -1,6 +1,6 @@
 {
-  "commit": "23b0e15ede300d5c19198b360e84732fa261341f",
-  "generated": "2024-11-14T21:12:59.198Z",
+  "commit": "4039219e5afdab66a079524c30729994220ecdf5",
+  "generated": "2024-11-15T21:25:42.590Z",
   "metadata": [
     {
       "__outstatic": {
@@ -17,6 +17,22 @@
       "slug": "friends",
       "status": "draft",
       "title": "Friends"
+    },
+    {
+      "__outstatic": {
+        "commit": "4039219e5afdab66a079524c30729994220ecdf5",
+        "hash": "80712144",
+        "path": "outstatic/content/posts/let-me.mdx"
+      },
+      "author": {
+        "name": "Andre Vitorio",
+        "picture": "https://avatars.githubusercontent.com/u/1417109?v=4"
+      },
+      "collection": "posts",
+      "publishedAt": "2024-11-15T21:07:35.946Z",
+      "slug": "let-me",
+      "status": "draft",
+      "title": "Let Me"
     }
   ]
 }
