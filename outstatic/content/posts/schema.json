@@ -7,7 +7,16 @@
       "fieldType": "Tags",
       "dataType": "array",
       "title": "Friends",
-      "values": []
+      "values": [
+        {
+          "value": "ross",
+          "label": "Ross"
+        },
+        {
+          "value": "rachel",
+          "label": "Rachel"
+        }
+      ]
     }
   }
 }

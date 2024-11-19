@@ -1,6 +1,6 @@
 {
-  "commit": "ec369412d82ca9d7d770f393a684b7893cc9b6f2",
-  "generated": "2024-11-19T00:26:12.891Z",
+  "commit": "71312d3496c9a24fb8bdf77b642f024612905496",
+  "generated": "2024-11-19T00:40:38.793Z",
   "metadata": [
     {
       "__outstatic": {
@@ -20,8 +20,8 @@
     },
     {
       "__outstatic": {
-        "commit": "ec369412d82ca9d7d770f393a684b7893cc9b6f2",
-        "hash": "3454286091",
+        "commit": "71312d3496c9a24fb8bdf77b642f024612905496",
+        "hash": "1944497865",
         "path": "outstatic/content/posts/friends.mdx"
       },
       "author": {
@@ -29,6 +29,16 @@
         "picture": "https://avatars.githubusercontent.com/u/1417109?v=4"
       },
       "collection": "posts",
+      "friends": [
+        {
+          "label": "Ross",
+          "value": "ross"
+        },
+        {
+          "label": "Rachel",
+          "value": "rachel"
+        }
+      ],
       "publishedAt": "2024-11-13T20:41:20.319Z",
       "slug": "friends",
       "status": "draft",
