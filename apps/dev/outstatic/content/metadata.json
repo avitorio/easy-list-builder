@@ -1,0 +1,48 @@
+{
+  "commit": "",
+  "generated": "Tue, 19 Nov 2024 00:45:24 GMT",
+  "metadata": [
+    {
+      "__outstatic": {
+        "commit": "",
+        "hash": "80712144",
+        "path": "outstatic/content/posts/let-me.mdx"
+      },
+      "author": {
+        "name": "Andre Vitorio",
+        "picture": "https://avatars.githubusercontent.com/u/1417109?v=4"
+      },
+      "collection": "posts",
+      "publishedAt": "2024-11-15T21:07:35.946Z",
+      "slug": "let-me",
+      "status": "draft",
+      "title": "Let Me"
+    },
+    {
+      "__outstatic": {
+        "commit": "",
+        "hash": "1944497865",
+        "path": "outstatic/content/posts/friends.mdx"
+      },
+      "author": {
+        "name": "Andre Vitorio",
+        "picture": "https://avatars.githubusercontent.com/u/1417109?v=4"
+      },
+      "collection": "posts",
+      "friends": [
+        {
+          "label": "Ross",
+          "value": "ross"
+        },
+        {
+          "label": "Rachel",
+          "value": "rachel"
+        }
+      ],
+      "publishedAt": "2024-11-13T20:41:20.319Z",
+      "slug": "friends",
+      "status": "draft",
+      "title": "Friends"
+    }
+  ]
+}
